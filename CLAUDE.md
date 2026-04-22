@@ -49,7 +49,11 @@ streamlit run streamlit_app.py
 ## 배포
 
 - **Streamlit Cloud**: 이 레포 연결, secrets에 `INCHEON_API_KEY` 등록
-- URL: `jhawk-icn-dashboard.streamlit.app` (예정)
+- URL: <https://jhawk-icn-dashboard.streamlit.app>
+- **매일 자동 수집**: Claude Code 스케줄 트리거 `trig_01KXfKu4nJ4A1asgvekGCiBN`
+  - 스케줄: `0 8 * * *` UTC = 매일 17:00 KST
+  - 동작: `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
+  - 관리: <https://claude.ai/code/scheduled/trig_01KXfKu4nJ4A1asgvekGCiBN>
 
 ## 참고
 
