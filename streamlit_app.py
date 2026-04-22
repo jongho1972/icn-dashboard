@@ -2,7 +2,7 @@
 import math
 import os
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import altair as alt
 import pandas as pd
@@ -230,7 +230,16 @@ df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
 render_table(df_region)
 
 st.markdown("### 게이트별")
-df_gate = rows_to_df(agg_gate(prev_same, curr), prev_label, curr_label)
+# D-1 기준으로 재필터 (탑승구 미배정 미래편 영향 제거)
+d_minus_1 = today - timedelta(days=1)
+gate_cutoff = d_minus_1.day if (d_minus_1.year == curr_year and d_minus_1.month == curr_month) else max_day
+gate_prev = prev_same[prev_same["DD"] <= gate_cutoff]
+gate_curr = curr[curr["DD"] <= gate_cutoff]
+st.caption(
+    f"기준: **{prev_label}·{curr_label} 1~{gate_cutoff}일** "
+    f"(오늘 D-1 = {d_minus_1.strftime('%Y-%m-%d')}까지, 실제 운항 완료분 기준)"
+)
+df_gate = rows_to_df(agg_gate(gate_prev, gate_curr), prev_label, curr_label)
 render_table(df_gate, total_row_idx=0)
 with st.expander("게이트 분류 기준"):
     st.markdown(
