@@ -25,56 +25,123 @@ DAILY_DIR = os.path.join(BASE, "Daily_Data")
 FINAL_DIR = os.path.join(BASE, "Final_Data")
 DEST_PATH = os.path.join(BASE, "항공편목적지.txt")
 
-# ---------- 전역 스타일 ----------
+# ---------- 전역 스타일 (웹 디자이너 리뷰 반영: 1.28 비율 타입 스케일 + 4pt 리듬) ----------
 STYLE = """
 <style>
+/* ===== 기본 ===== */
 .stApp { background: #ffffff; }
-.block-container { padding-top: 1.4rem; max-width: 1320px; }
-.block-container [data-testid="stVerticalBlock"] { gap: 0.6rem; }
+.block-container {
+  padding-top: 2.75rem;
+  padding-bottom: 3rem;
+  max-width: 1320px;
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard",
+               "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  color: #111827;
+  letter-spacing: -0.011em;
+}
+.block-container [data-testid="stVerticalBlock"] { gap: 1rem; }
 
+/* ===== 타이틀 ===== */
 h1.page-title {
-  font-weight: 800; color: #003875; margin: 0; font-size: 2rem; letter-spacing: -0.02em;
+  font-weight: 800; color: #003875;
+  margin: 0; font-size: 1.875rem;      /* 30px */
+  letter-spacing: -0.025em; line-height: 1.2;
 }
-h3 {
+.period-note {
+  color: #64748b; font-size: 13px;
+  margin-top: 6px; line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+.period-note b { color: #334155; font-weight: 600; }
+
+/* ===== 섹션 헤더 (h3) : 앵커 숨기고 위계 강화 ===== */
+.block-container h3 {
   border-left: 4px solid #003875;
-  padding: 2px 0 2px 10px;
-  font-weight: 600; font-size: 1.1rem; color: #222;
-  margin: 1.4rem 0 0.5rem 0;
+  padding: 6px 0 6px 12px;
+  font-weight: 700; font-size: 1.3125rem;   /* 21px */
+  color: #1a1a1a;
+  letter-spacing: -0.02em; line-height: 1.3;
+  margin: 2.5rem 0 0.75rem 0;
 }
-.period-note { color: #555; font-size: 13px; margin-top: 2px; }
+.block-container h3:first-of-type { margin-top: 1.75rem; }
+.block-container h3 a,
+.block-container h3 [data-testid="stHeaderActionElements"] { display: none !important; }
+
+/* ===== 업데이트 배지 + 버튼 ===== */
+.header-right {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 8px; margin-bottom: 12px;
+}
 .update-badge {
-  display: inline-block; background: #f4f6fa; color: #4a5568;
-  padding: 6px 12px; border-radius: 4px; font-size: 13px;
-  font-family: ui-monospace, "SF Mono", monospace; border: 1px solid #dde2ea;
+  display: inline-flex; align-items: center;
+  background: #f1f5f9; color: #475569;
+  padding: 6px 12px; border-radius: 4px;
+  font-size: 12px; line-height: 1.5;
+  font-family: ui-monospace, "SF Mono", monospace;
+  border: 1px solid #e2e8f0; letter-spacing: 0;
+}
+.stButton > button {
+  font-size: 13.5px; font-weight: 600;
+  padding: 6px 14px; border-radius: 6px;
 }
 
-div[data-testid="stMetricValue"] { font-size: 1.9rem; font-weight: 700; color: #003875; }
-div[data-testid="stMetricLabel"] { font-size: 0.9rem; color: #666; font-weight: 500; }
-div[data-testid="stMetricDelta"] { font-size: 0.85rem; }
+/* ===== 요약 카드 (metric) ===== */
+div[data-testid="stMetric"] { background: #ffffff; padding: 4px 0 0 0; }
+div[data-testid="stMetricLabel"] {
+  font-size: 13px; color: #667085; font-weight: 500;
+  margin-bottom: 4px; letter-spacing: -0.01em;
+}
+div[data-testid="stMetricLabel"] > div { font-size: 13px !important; }
+div[data-testid="stMetricValue"] {
+  font-size: 1.75rem; font-weight: 700; color: #003875;
+  line-height: 1.15; margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+div[data-testid="stMetricValue"] > div { font-size: 1.75rem !important; }
+div[data-testid="stMetricDelta"] {
+  font-size: 12.5px; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 
+/* ===== 테이블 ===== */
 table.icn {
-  border-collapse: collapse; width: 100%; margin: 0;
-  font-size: 13px; font-family: -apple-system, system-ui, "Noto Sans KR", sans-serif;
+  border-collapse: collapse; width: 100%;
+  margin: 4px 0 0 0;
+  font-size: 13.5px; line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  font-family: -apple-system, BlinkMacSystemFont,
+               "Pretendard", "Noto Sans KR", sans-serif;
+  color: #111827; letter-spacing: -0.01em;
 }
-table.icn th, table.icn td { border: 1px solid #dde2ea; padding: 6px 10px; }
+table.icn th, table.icn td {
+  border: 1px solid #e2e8f0; padding: 8px 12px;
+}
 table.icn thead th {
-  background: #f4f6fa; font-weight: 700; color: #333; text-align: center;
-  line-height: 1.3;
+  background: #f8fafc; font-weight: 700; font-size: 12.5px;
+  color: #475569; text-align: center;
+  padding: 10px 12px; line-height: 1.35;
+  letter-spacing: 0;
 }
 table.icn thead th.t1-group { background: #e8f0f8; color: #003875; }
 table.icn thead th.t2-group { background: #fdf2e9; color: #a04016; }
 table.icn td { text-align: right; }
 table.icn td.label {
-  text-align: center; font-weight: 600; background: #fafbfc; color: #333;
+  text-align: center; font-weight: 600;
+  background: #fafbfc; color: #334155;
 }
 table.icn td.pos { color: #0070C0; font-weight: 600; }
 table.icn td.neg { color: #C00000; font-weight: 600; }
-table.icn td.dash { color: #c8c8c8; text-align: center; }
-table.icn th.t1-last, table.icn td.t1-last { border-right: 2px solid #888; }
+table.icn td.dash { color: #cbd5e1; text-align: center; }
+table.icn th.t1-last, table.icn td.t1-last { border-right: 2px solid #94a3b8; }
 table.icn tr.total-row td {
   background: #eef3f9; font-weight: 700; color: #003875;
 }
 table.icn tr.total-row td.label { background: #e4ecf6; color: #003875; }
+
+/* ===== Streamlit 기본 간격 누수 차단 ===== */
+.block-container [data-testid="stMarkdownContainer"] p { margin: 0; }
+.stTabs [data-baseweb="tab-list"] { gap: 24px; }
 </style>
 """
 
@@ -135,7 +202,7 @@ with hc1:
     )
 with hc2:
     st.markdown(
-        f'<div style="text-align:right; margin-top:6px;">'
+        f'<div class="header-right">'
         f'<span class="update-badge">업데이트 {datetime.now().strftime("%Y-%m-%d %H:%M")}</span>'
         f'</div>',
         unsafe_allow_html=True,
@@ -161,11 +228,11 @@ def _delta(c, p, int_ref=True):
     return f"{v:+.1%}  vs {ref}"
 
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric(f"T1 ({curr_label})", f"{t1_c:,} 편", _delta(t1_c, t1_p))
-c2.metric(f"T2 ({curr_label})", f"{t2_c:,} 편", _delta(t2_c, t2_p))
-c3.metric(f"합계 ({curr_label})", f"{tot_c:,} 편", _delta(tot_c, tot_p))
-c4.metric(f"일평균 ({curr_label})", f"{avg_c:,.0f} 편", _delta(avg_c, avg_p, int_ref=False))
+c1, c2, c3, c4 = st.columns(4, gap="medium")
+c1.metric(f"T1 ({curr_label})", f"{t1_c:,} 편", _delta(t1_c, t1_p))
+c2.metric(f"T2 ({curr_label})", f"{t2_c:,} 편", _delta(t2_c, t2_p))
+c3.metric(f"합계 ({curr_label})", f"{tot_c:,} 편", _delta(tot_c, tot_p))
+c4.metric(f"일평균 ({curr_label})", f"{avg_c:,.0f} 편", _delta(avg_c, avg_p, int_ref=False))
 
 
 # ---------- 테이블 렌더러 (2단 헤더 · NaN/0 구분 · 합계 강조) ----------
