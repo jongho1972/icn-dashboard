@@ -218,19 +218,17 @@ tot_p, tot_c = t1_p + t2_p, t1_c + t2_c
 avg_p, avg_c = tot_p / max_day, tot_c / max_day
 
 
-def _delta(c, p, int_ref=True):
-    if p == 0: return None
-    v = pct(c, p)
-    if math.isnan(v): return None
-    ref = f"{p:,.0f}" if int_ref else f"{p:,.1f}"
-    return f"{v:+.1%}  vs {ref}"
-
-
-c1, c2, c3, c4 = st.columns(4, gap="medium")
-c1.metric(f"T1 ({curr_label})", f"{t1_c:,} 편", _delta(t1_c, t1_p))
-c2.metric(f"T2 ({curr_label})", f"{t2_c:,} 편", _delta(t2_c, t2_p))
-c3.metric(f"합계 ({curr_label})", f"{tot_c:,} 편", _delta(tot_c, tot_p))
-c4.metric(f"일평균 ({curr_label})", f"{avg_c:,.0f} 편", _delta(avg_c, avg_p, int_ref=False))
+def _trend(c, p):
+    """전월비를 ↑/↓ 색상 HTML span으로 반환."""
+    if p == 0:
+        return ""
+    r = pct(c, p)
+    if math.isnan(r):
+        return ""
+    color = "#0070C0" if r > 0 else ("#C00000" if r < 0 else "#64748b")
+    arrow = "↑" if r > 0 else ("↓" if r < 0 else "·")
+    return (f' <span style="color:{color};font-weight:600;">'
+            f'{arrow} {abs(r):.1%}</span>')
 
 
 # ---------- 테이블 렌더러 (2단 헤더 · NaN/0 구분 · 합계 강조) ----------
@@ -283,6 +281,16 @@ def render_table(df, total_row_idx=None):
 
 # ---------- 섹션들 ----------
 st.markdown("### 전체")
+st.markdown(
+    f'<div style="color:#334155;font-size:13.5px;margin:-4px 0 10px 2px;line-height:1.8;">'
+    f'<b>T1 합계</b> {t1_c:,}편{_trend(t1_c, t1_p)}'
+    f'&nbsp;&nbsp;·&nbsp;&nbsp;'
+    f'<b>T2 합계</b> {t2_c:,}편{_trend(t2_c, t2_p)}'
+    f'&nbsp;&nbsp;·&nbsp;&nbsp;'
+    f'<b>일평균</b> {avg_c:,.0f}편{_trend(avg_c, avg_p)}'
+    f'</div>',
+    unsafe_allow_html=True,
+)
 df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
