@@ -48,11 +48,14 @@ h1.page-title {
   letter-spacing: -0.025em; line-height: 1.2;
 }
 .period-note {
-  color: #64748b; font-size: 13px;
-  margin-top: 6px; line-height: 1.5;
-  letter-spacing: -0.01em;
+  display: inline-flex; align-items: center;
+  background: #f1f5f9; color: #475569;
+  padding: 6px 12px; border-radius: 4px;
+  font-size: 13px; line-height: 1.5;
+  border: 1px solid #e2e8f0;
+  margin-top: 8px; letter-spacing: -0.01em;
 }
-.period-note b { color: #334155; font-weight: 600; }
+.period-note b { color: #1a1a1a; font-weight: 600; }
 
 /* ===== 섹션 헤더 (h3) : 앵커 숨기고 위계 강화 ===== */
 .block-container h3 {
@@ -76,7 +79,7 @@ h1.page-title {
   display: inline-flex; align-items: center;
   background: #f1f5f9; color: #475569;
   padding: 6px 12px; border-radius: 4px;
-  font-size: 12px; line-height: 1.5;
+  font-size: 13px; line-height: 1.5;
   font-family: ui-monospace, "SF Mono", monospace;
   border: 1px solid #e2e8f0; letter-spacing: 0;
 }
