@@ -339,7 +339,8 @@ with tab1:
             x=alt.X("일:Q", title="일자",
                     axis=alt.Axis(tickMinStep=1, labelFontSize=11)),
             y=alt.Y("편수:Q", title="편수",
-                    axis=alt.Axis(labelFontSize=11, format=",")),
+                    scale=alt.Scale(zero=False, nice=True, padding=10),
+                    axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
             color=alt.Color(
                 "터미널:N",
                 scale=alt.Scale(domain=["T1", "T2"], range=["#0070C0", "#E8833A"]),
