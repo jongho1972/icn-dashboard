@@ -390,6 +390,8 @@ if True:
     y_min = int(long["편수"].min()) - 10
     y_max = int(long["편수"].max()) + 10
 
+    today_day = today.day if (today.year == curr_year and today.month == curr_month) else None
+
     def _terminal_chart(terminal, color):
         df_t = long[long["터미널"] == terminal]
         base = alt.Chart(df_t).encode(
@@ -445,14 +447,36 @@ if True:
                 y=alt.Y("편수:Q", scale=alt.Scale(domain=[y_min, y_max], nice=True)),
             )
         )
+        layers = [line, pts]
+
+        if today_day is not None and 1 <= today_day <= max_day:
+            # 오늘 날짜 세로 점선 + '오늘' 라벨
+            today_rule = (
+                alt.Chart(pd.DataFrame({"일": [today_day]}))
+                .mark_rule(color="#C00000", strokeWidth=1.25, strokeDash=[4, 3])
+                .encode(x=alt.X("일:Q",
+                                scale=alt.Scale(domain=[1, max_day], nice=False, padding=6)))
+            )
+            today_label = (
+                alt.Chart(pd.DataFrame({"일": [today_day], "y": [y_max]}))
+                .mark_text(text="오늘", color="#C00000",
+                           fontSize=11, fontWeight="bold",
+                           dx=4, dy=-2, align="left", baseline="top")
+                .encode(
+                    x=alt.X("일:Q", scale=alt.Scale(domain=[1, max_day], nice=False, padding=6)),
+                    y=alt.Y("y:Q", scale=alt.Scale(domain=[y_min, y_max], nice=True)),
+                )
+            )
+            layers += [today_rule, today_label]
+
         return (
-            (line + pts)
+            alt.layer(*layers)
             .properties(
-                width="container", height=220,
+                width="container", height=240,
                 title=alt.Title(
                     text=terminal, anchor="start",
-                    fontSize=13, fontWeight=600, color="#0B2E5C",
-                    dy=-4, offset=4,
+                    fontSize=18, fontWeight="bold", color=color,
+                    dy=-4, offset=8,
                 ),
             )
             .configure_view(stroke=None)
