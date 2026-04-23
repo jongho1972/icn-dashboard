@@ -55,7 +55,6 @@ h1.page-title {
   border: 1px solid #e2e8f0;
   margin-top: 8px; letter-spacing: -0.01em;
 }
-.period-note b { color: #1a1a1a; font-weight: 600; }
 
 /* ===== 섹션 헤더 (h3) : 앵커 숨기고 위계 강화 ===== */
 .block-container h3 {
@@ -200,7 +199,7 @@ with hc1:
     st.markdown('<h1 class="page-title">인천공항 국제선 출발편 현황</h1>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="period-note">'
-        f'기간: <b>{prev_label}·{curr_label} 1~{max_day}일 동일기간</b>'
+        f'기간 : {prev_label}/{curr_label} 1~{max_day}일 동일기간'
         f'</div>',
         unsafe_allow_html=True,
     )
