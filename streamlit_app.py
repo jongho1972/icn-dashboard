@@ -474,10 +474,9 @@ df_gate = rows_to_df(agg_gate(gate_prev, gate_curr), prev_label, curr_label)
 render_table(df_gate, total_row_idx=0)
 with st.expander("게이트 분류 기준"):
     st.markdown(
-        "- **동편**: 탑승구 ≤ 25 또는 251~299\n"
-        "- **중앙**: 26~28\n"
-        "- **서편**: 29~50 또는 200~250\n"
-        "- **탑승동**: 51~199"
+        "- **동편**: 탑승구 ≤ 25 또는 ≥ 251\n"
+        "- **서편**: 29 ~ 99 또는 200 ~ 250\n"
+        "- **탑승동**: 100 ~ 199"
     )
 
 # ---------- 푸터 ----------
