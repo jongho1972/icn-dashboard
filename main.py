@@ -24,8 +24,9 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from icn_utils.aggregator import (
-    GATES, REGIONS, AIRLINES,
+    GATES, REGIONS, AIRLINES, REGION_MERGE,
     agg_airline, agg_daily, agg_gate, agg_region, agg_total,
+    airline_group, gate_group,
     pct, prepare, rows_to_df,
 )
 from icn_utils.data_loader import (
@@ -436,12 +437,19 @@ async def export_raw(start: str, end: str):
     df = df[(df["YYYYMMDD"] >= start_dt) & (df["YYYYMMDD"] <= end_dt)]
     df = df.sort_values(["YYYYMMDD", "출발시각", "출발분", "운항편명"]).reset_index(drop=True)
 
+    # 대시보드 집계 기준 구분 컬럼 추가
+    df["항공사 구분"] = df["항공사"].fillna("").apply(airline_group)
+    df["도착지 구분"] = df["지역"].replace(REGION_MERGE)
+    df["게이트 구분"] = df["탑승구"].apply(gate_group)
+
     # 정렬 · 컬럼 정리 (엑셀에 무리 없는 순서)
     cols = [
         "YYYYMMDD", "YYYY", "MM", "DD", "출발시각", "출발분",
-        "터미널", "운항편명", "항공사",
-        "목적지", "국가", "지역",
-        "체크인 카운터", "탑승구", "CODESHARE", "Master_Flight",
+        "터미널",
+        "운항편명", "항공사", "항공사 구분",
+        "목적지", "국가", "지역", "도착지 구분",
+        "체크인 카운터", "탑승구", "게이트 구분",
+        "CODESHARE", "Master_Flight",
         "remark", "scheduleDateTime", "estimatedDateTime", "Flight_Key",
     ]
     df = df[[c for c in cols if c in df.columns]]
