@@ -18,7 +18,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -28,7 +28,10 @@ from icn_utils.aggregator import (
     agg_airline, agg_daily, agg_gate, agg_region, agg_total,
     pct, prepare, rows_to_df,
 )
-from icn_utils.data_loader import build_current_month, build_previous_month
+from icn_utils.data_loader import (
+    build_current_month, build_previous_month,
+    load_daily_range, process_raw,
+)
 
 load_dotenv()
 
@@ -277,6 +280,8 @@ async def index(request: Request):
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
+            "export_default_start": date(prev_year, prev_month, 1).isoformat(),
+            "export_default_end": today.isoformat(),
         },
     )
 
@@ -390,3 +395,77 @@ async def add_destinations(req: AddDestRequest):
 @app.get("/healthz")
 async def healthz():
     return {"ok": True, "time": datetime.now(KST).isoformat()}
+
+
+# ---------- Raw 데이터 Excel 다운로드 ----------
+MAX_EXPORT_DAYS = 180  # 한번에 최대 180일
+
+
+@app.get("/api/export-raw")
+async def export_raw(start: str, end: str):
+    """start/end (YYYYMMDD) 기간의 Raw 데이터를 Excel로 다운로드.
+
+    Daily_Data pkl → 가공(process_raw) → 날짜 필터 → .xlsx 반환.
+    """
+    from io import BytesIO
+
+    try:
+        start_dt = datetime.strptime(start, "%Y%m%d")
+        end_dt = datetime.strptime(end, "%Y%m%d")
+    except ValueError:
+        raise HTTPException(400, "start/end 는 YYYYMMDD 형식이어야 합니다.")
+    if end_dt < start_dt:
+        start_dt, end_dt = end_dt, start_dt
+    span = (end_dt - start_dt).days + 1
+    if span > MAX_EXPORT_DAYS:
+        raise HTTPException(
+            400, f"최대 {MAX_EXPORT_DAYS}일 범위까지만 내보낼 수 있습니다 (요청: {span}일)."
+        )
+
+    raw = load_daily_range(
+        str(DAILY_DIR),
+        start_dt.strftime("%Y%m%d"),
+        end_dt.strftime("%Y%m%d"),
+    )
+    if len(raw) == 0:
+        raise HTTPException(404, "해당 기간의 데이터가 없습니다.")
+
+    dest = load_dest()
+    df = process_raw(raw, dest)
+    # 실제 운항일 기준 필터
+    df = df[(df["YYYYMMDD"] >= start_dt) & (df["YYYYMMDD"] <= end_dt)]
+    df = df.sort_values(["YYYYMMDD", "출발시각", "출발분", "운항편명"]).reset_index(drop=True)
+
+    # 정렬 · 컬럼 정리 (엑셀에 무리 없는 순서)
+    cols = [
+        "YYYYMMDD", "YYYY", "MM", "DD", "출발시각", "출발분",
+        "터미널", "운항편명", "항공사",
+        "목적지", "국가", "지역",
+        "체크인 카운터", "탑승구", "CODESHARE", "Master_Flight",
+        "remark", "scheduleDateTime", "estimatedDateTime", "Flight_Key",
+    ]
+    df = df[[c for c in cols if c in df.columns]]
+    df["YYYYMMDD"] = df["YYYYMMDD"].dt.strftime("%Y-%m-%d")
+    df["scheduleDateTime"] = df["scheduleDateTime"].dt.strftime("%Y-%m-%d %H:%M")
+    df["estimatedDateTime"] = df["estimatedDateTime"].dt.strftime("%Y-%m-%d %H:%M")
+
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        df.to_excel(w, index=False, sheet_name="Raw")
+        ws = w.sheets["Raw"]
+        # 첫 행 고정, 열 너비 자동(approx)
+        ws.freeze_panes = "A2"
+        for i, col in enumerate(df.columns, start=1):
+            max_len = max(len(str(col)), int(df[col].astype(str).str.len().quantile(0.95)) if len(df) else 0)
+            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = min(max_len + 2, 28)
+    buf.seek(0)
+
+    fname = f"icn_flights_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{fname}"',
+            "Cache-Control": "no-store",
+        },
+    )

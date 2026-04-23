@@ -75,7 +75,8 @@
     /* 캡처 중 버튼/업데이트 배지/미매핑 배너 숨김 처리 */
     body.capturing .copy-btn,
     body.capturing .update-badge,
-    body.capturing .unmapped-banner { visibility: hidden; }
+    body.capturing .unmapped-banner,
+    body.capturing .header-actions { visibility: hidden; }
 
     /* 미매핑 경고 배너 */
     .unmapped-banner {
@@ -261,6 +262,7 @@
       <h1 class="page-title">인천공항 국제선 출발편 현황</h1>
       <div class="header-actions">
         <span class="update-badge">데이터 조회 {{ fetched_at }} KST</span>
+        <button id="export-btn" class="copy-btn" type="button" onclick="openExportModal()" style="background:#13407F;">📥 Excel 다운로드</button>
         <button id="copy-btn" class="copy-btn" type="button">📋 이미지 복사</button>
       </div>
     </div>
@@ -323,6 +325,40 @@
       </div>
     </footer>
 
+  </div>
+
+  <div id="exportModal" class="modal-backdrop" onclick="if(event.target===this) closeExportModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2>Raw 데이터 Excel 다운로드</h2>
+      <p>선택한 기간의 실제 운항 데이터(가공 포함)를 <code>.xlsx</code>로 내려받습니다. 최대 180일.</p>
+      <form id="exportForm" onsubmit="doExport(event)">
+        <table>
+          <tr>
+            <td style="width:30%;padding:10px 6px;">
+              <label for="exportStart" style="color:var(--slate-700);font-weight:500;">시작일</label>
+            </td>
+            <td style="padding:10px 6px;">
+              <input type="date" id="exportStart" name="start"
+                     value="{{ export_default_start }}" required>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:10px 6px;">
+              <label for="exportEnd" style="color:var(--slate-700);font-weight:500;">종료일</label>
+            </td>
+            <td style="padding:10px 6px;">
+              <input type="date" id="exportEnd" name="end"
+                     value="{{ export_default_end }}" required>
+            </td>
+          </tr>
+        </table>
+        <div class="modal-actions">
+          <div id="exportResult" class="result"></div>
+          <button type="button" class="modal-btn cancel" onclick="closeExportModal()">취소</button>
+          <button type="submit" class="modal-btn primary" id="exportSubmit">다운로드</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   {% if unmapped %}
@@ -532,6 +568,62 @@
         }
       });
     })();
+
+    // ===== Raw 데이터 Excel 다운로드 모달 =====
+    function openExportModal() {
+      document.getElementById("exportModal").classList.add("open");
+      document.getElementById("exportResult").textContent = "";
+    }
+    function closeExportModal() {
+      document.getElementById("exportModal").classList.remove("open");
+    }
+    async function doExport(ev) {
+      ev.preventDefault();
+      const form = ev.target;
+      const start = form.start.value.replaceAll("-", "");
+      const end = form.end.value.replaceAll("-", "");
+      if (!start || !end) return;
+      if (start > end) {
+        const el = document.getElementById("exportResult");
+        el.textContent = "종료일이 시작일보다 빠릅니다.";
+        el.className = "result err";
+        return;
+      }
+      const btn = document.getElementById("exportSubmit");
+      btn.disabled = true; btn.textContent = "생성 중...";
+      const el = document.getElementById("exportResult");
+      el.textContent = "Excel 파일 생성 중... (최대 수초)";
+      el.className = "result";
+      try {
+        const url = `/api/export-raw?start=${start}&end=${end}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          let msg = `HTTP ${res.status}`;
+          try { const j = await res.json(); msg = j.detail || JSON.stringify(j); } catch {}
+          el.textContent = "❌ " + msg;
+          el.className = "result err";
+        } else {
+          const blob = await res.blob();
+          const cd = res.headers.get("Content-Disposition") || "";
+          const m = cd.match(/filename="?([^";]+)"?/);
+          const fname = m ? m[1] : `icn_flights_${start}_${end}.xlsx`;
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = fname;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(a.href);
+          el.textContent = `✅ 다운로드 완료 (${fname})`;
+          el.className = "result ok";
+        }
+      } catch (e) {
+        el.textContent = "❌ " + (e.message || "실패");
+        el.className = "result err";
+      } finally {
+        btn.disabled = false; btn.textContent = "다운로드";
+      }
+    }
 
     // ===== 신규 도착지 매핑 모달 =====
     {% if unmapped %}

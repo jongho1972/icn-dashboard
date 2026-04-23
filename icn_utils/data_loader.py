@@ -30,6 +30,33 @@ def fetch_recent(service_key, days_back=3, days_forward=6):
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
+def load_daily_range(daily_dir, start_ymd: str, end_ymd: str):
+    """Daily_Data에서 start_ymd~end_ymd(YYYYMMDD, 포함) 범위 일별 pkl을 로드해 합쳐 반환.
+
+    실제 운항 일자(estimatedDateTime)가 범위 안에 드는 행만 남깁니다.
+    """
+    if not os.path.isdir(daily_dir):
+        return pd.DataFrame()
+    start = datetime.strptime(start_ymd, "%Y%m%d")
+    end = datetime.strptime(end_ymd, "%Y%m%d")
+    if end < start:
+        start, end = end, start
+    # API는 여러 날짜를 overlap 저장하므로 start-3 ~ end+3 범위 pkl까지 읽어 dedup 후 실제 날짜 필터
+    scan_start = start - timedelta(days=3)
+    scan_end = end + timedelta(days=3)
+    want = set(pd.date_range(scan_start, scan_end).strftime("%Y%m%d"))
+    pkls = sorted(
+        f for f in os.listdir(daily_dir)
+        if f.startswith("flight_schedule_") and f.endswith(".pkl")
+        and f[len("flight_schedule_"):-len(".pkl")] in want
+    )
+    if not pkls:
+        return pd.DataFrame()
+    dfs = [pd.read_pickle(os.path.join(daily_dir, f)) for f in pkls]
+    raw = pd.concat(dfs, ignore_index=True)
+    return raw
+
+
 def load_daily_month(daily_dir, yyyymm):
     """Daily_Data의 해당 월(YYYYMM) 일별 pkl 전체 로드."""
     if not os.path.isdir(daily_dir):
