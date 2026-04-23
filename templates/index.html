@@ -136,16 +136,15 @@
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
 
-    /* 각주 (페이지 하단) */
+    /* 각주 (페이지 하단) — 세로 스택 */
     footer.footnote {
       margin-top: 48px;
       padding-top: 16px;
       border-top: 1px solid var(--slate-100);
-      display: flex; gap: 40px; flex-wrap: wrap;
       font-size: 12px; color: var(--slate-500);
       line-height: 1.7; letter-spacing: -0.005em;
     }
-    footer.footnote .footnote-block { flex: 1; min-width: 280px; }
+    footer.footnote .footnote-block + .footnote-block { margin-top: 16px; }
     footer.footnote .footnote-title {
       font-weight: 600; color: var(--slate-700); font-size: 12px;
       margin-bottom: 6px;
@@ -157,7 +156,8 @@
     footer.footnote b { color: var(--slate-700); font-weight: 600; }
     footer.footnote a {
       color: var(--slate-500); text-decoration: underline;
-      text-decoration-color: var(--slate-200); word-break: break-all;
+      text-decoration-color: var(--slate-200);
+      word-break: keep-all; white-space: nowrap;
     }
     footer.footnote a:hover { color: var(--navy-900); text-decoration-color: var(--navy-900); }
 
