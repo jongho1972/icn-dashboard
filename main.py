@@ -71,6 +71,23 @@ def load_dest():
     return pd.read_table(DEST_PATH)
 
 
+def _latest_available_date() -> date:
+    """Daily_Data 내 가장 최근 일자의 pkl 파일에서 날짜 추출."""
+    if not DAILY_DIR.is_dir():
+        return date.today()
+    pkls = sorted(
+        f.name for f in DAILY_DIR.iterdir()
+        if f.name.startswith("flight_schedule_") and f.suffix == ".pkl"
+    )
+    if not pkls:
+        return date.today()
+    ymd = pkls[-1][len("flight_schedule_"):-len(".pkl")]
+    try:
+        return datetime.strptime(ymd, "%Y%m%d").date()
+    except ValueError:
+        return date.today()
+
+
 def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
     """1시간 캐시. 반환: (prev, curr, fetched_at_kst)."""
     key = f"{curr_year}-{curr_month}-{prev_year}-{prev_month}"
@@ -282,7 +299,7 @@ async def index(request: Request):
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
             "export_default_start": date(prev_year, prev_month, 1).isoformat(),
-            "export_default_end": today.isoformat(),
+            "export_default_end": _latest_available_date().isoformat(),
         },
     )
 
