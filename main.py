@@ -88,6 +88,33 @@ def _latest_available_date() -> date:
         return date.today()
 
 
+def _earliest_available_date() -> date:
+    """Final_Data 에서 가장 오래된 월의 1일(없으면 Daily_Data 최소)."""
+    months: list[str] = []
+    if FINAL_DIR.is_dir():
+        for f in FINAL_DIR.iterdir():
+            if f.name.startswith("flight_schedule_") and f.name.endswith("_cum.pkl"):
+                months.append(f.name[len("flight_schedule_"):-len("_cum.pkl")])
+    if months:
+        ym = sorted(months)[0]
+        try:
+            return date(int(ym[:4]), int(ym[4:]), 1)
+        except ValueError:
+            pass
+    if DAILY_DIR.is_dir():
+        pkls = sorted(
+            f.name for f in DAILY_DIR.iterdir()
+            if f.name.startswith("flight_schedule_") and f.suffix == ".pkl"
+        )
+        if pkls:
+            ymd = pkls[0][len("flight_schedule_"):-len(".pkl")]
+            try:
+                return datetime.strptime(ymd, "%Y%m%d").date()
+            except ValueError:
+                pass
+    return date.today()
+
+
 def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
     """1시간 캐시. 반환: (prev, curr, fetched_at_kst)."""
     key = f"{curr_year}-{curr_month}-{prev_year}-{prev_month}"
@@ -303,6 +330,8 @@ async def index(request: Request):
             "countries": countries,
             "export_default_start": date(prev_year, prev_month, 1).isoformat(),
             "export_default_end": _latest_available_date().isoformat(),
+            "export_min_date": _earliest_available_date().isoformat(),
+            "export_max_date": _latest_available_date().isoformat(),
         },
     )
 

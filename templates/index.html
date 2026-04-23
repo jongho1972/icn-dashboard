@@ -348,7 +348,8 @@
             </td>
             <td style="padding:10px 6px;">
               <input type="date" id="exportStart" name="start"
-                     value="{{ export_default_start }}" required>
+                     value="{{ export_default_start }}"
+                     min="{{ export_min_date }}" max="{{ export_max_date }}" required>
             </td>
           </tr>
           <tr>
@@ -357,7 +358,8 @@
             </td>
             <td style="padding:10px 6px;">
               <input type="date" id="exportEnd" name="end"
-                     value="{{ export_default_end }}" required>
+                     value="{{ export_default_end }}"
+                     min="{{ export_min_date }}" max="{{ export_max_date }}" required>
             </td>
           </tr>
         </table>
@@ -599,6 +601,21 @@
     })();
 
     // ===== Raw 데이터 CSV 다운로드 모달 =====
+    const EXPORT_MIN = "{{ export_min_date }}";
+    const EXPORT_MAX = "{{ export_max_date }}";
+    (function syncExportDateBounds() {
+      const s = document.getElementById("exportStart");
+      const e = document.getElementById("exportEnd");
+      if (!s || !e) return;
+      s.addEventListener("change", () => {
+        e.min = s.value || EXPORT_MIN;
+        if (e.value && e.value < e.min) e.value = e.min;
+      });
+      e.addEventListener("change", () => {
+        s.max = e.value || EXPORT_MAX;
+        if (s.value && s.value > s.max) s.value = s.max;
+      });
+    })();
     function openExportModal() {
       document.getElementById("exportModal").classList.add("open");
       document.getElementById("exportResult").textContent = "";
