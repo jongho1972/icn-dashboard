@@ -474,15 +474,24 @@ async def export_raw(start: str, end: str):
     df["scheduleDateTime"] = df["scheduleDateTime"].dt.strftime("%Y-%m-%d %H:%M")
     df["estimatedDateTime"] = df["estimatedDateTime"].dt.strftime("%Y-%m-%d %H:%M")
 
+    # xlsxwriter 엔진 (openpyxl 대비 30-40% 빠름) + 상수 열 너비 (전체 스캔 제거)
+    COL_WIDTHS = {
+        "YYYYMMDD": 12, "YYYY": 6, "MM": 4, "DD": 4,
+        "출발시각": 8, "출발분": 8,
+        "터미널": 7, "운항편명": 11, "항공사": 18, "항공사 구분": 11,
+        "목적지": 22, "국가": 14, "지역": 10, "도착지 구분": 11,
+        "체크인 카운터": 14, "탑승구": 8, "게이트 구분": 11,
+        "CODESHARE": 11, "Master_Flight": 13,
+        "remark": 8,
+        "scheduleDateTime": 18, "estimatedDateTime": 18, "Flight_Key": 22,
+    }
     buf = BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+    with pd.ExcelWriter(buf, engine="xlsxwriter") as w:
         df.to_excel(w, index=False, sheet_name="Raw")
         ws = w.sheets["Raw"]
-        # 첫 행 고정, 열 너비 자동(approx)
-        ws.freeze_panes = "A2"
-        for i, col in enumerate(df.columns, start=1):
-            max_len = max(len(str(col)), int(df[col].astype(str).str.len().quantile(0.95)) if len(df) else 0)
-            ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = min(max_len + 2, 28)
+        ws.freeze_panes(1, 0)
+        for i, col in enumerate(df.columns):
+            ws.set_column(i, i, COL_WIDTHS.get(col, 14))
     buf.seek(0)
 
     fname = f"icn_flights_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.xlsx"
