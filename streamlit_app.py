@@ -151,8 +151,8 @@ def load_dest():
     return pd.read_table(DEST_PATH)
 
 
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key, cache_key):
+def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
+    """세션 단위 호출. 새 접속·새로고침마다 최신 API 재조회."""
     dest = load_dest()
     curr = build_current_month(DAILY_DIR, dest, service_key, curr_year, curr_month)
     prev = build_previous_month(FINAL_DIR, DAILY_DIR, dest, prev_year, prev_month)
@@ -172,10 +172,12 @@ except (KeyError, FileNotFoundError):
     st.error("`INCHEON_API_KEY` 가 Streamlit secrets에 설정되지 않았습니다.")
     st.stop()
 
-cache_key = today.isoformat()
-
-with st.spinner("인천공항 API 호출 중... (최근 10일치 실시간 조회)"):
-    prev, curr = fetch_months(curr_year, curr_month, prev_year, prev_month, service_key, cache_key)
+if "months_data" not in st.session_state:
+    with st.spinner("인천공항 API 호출 중... (최근 10일치 실시간 조회)"):
+        st.session_state.months_data = fetch_months(
+            curr_year, curr_month, prev_year, prev_month, service_key
+        )
+prev, curr = st.session_state.months_data
 
 if len(curr) == 0:
     st.error("이번달 데이터를 불러오지 못했습니다. API serviceKey와 Daily_Data 폴더를 확인하세요.")
@@ -190,7 +192,7 @@ prev_label = f"{prev_month}월"
 curr_label = f"{curr_month}월"
 
 # ---------- 헤더 ----------
-hc1, hc_badge, hc_btn = st.columns([5, 2, 2], vertical_alignment="bottom")
+hc1, hc_badge = st.columns([5, 2], vertical_alignment="bottom")
 with hc1:
     st.markdown('<h1 class="page-title">인천공항 국제선 출발편 현황</h1>', unsafe_allow_html=True)
     st.markdown(
@@ -206,10 +208,6 @@ with hc_badge:
         f'</div>',
         unsafe_allow_html=True,
     )
-with hc_btn:
-    if st.button("최신 데이터 가져오기", key="refresh", width="stretch"):
-        st.cache_data.clear()
-        st.rerun()
 
 # ---------- 요약 카드 ----------
 t1_p = len(prev_same[prev_same["터미널"] == "T1"])
