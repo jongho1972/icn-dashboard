@@ -293,7 +293,7 @@
       /* 헤더 버튼 줄바꿈 허용 */
       .header-row { flex-wrap: wrap; gap: 8px; }
       .header-actions { flex-wrap: wrap; gap: 6px; }
-      .chart { height: 220px; }
+      .chart { height: 280px; }
     }
   </style>
 </head>
@@ -461,7 +461,13 @@
     const days = [];
     for (let i = 1; i <= chartData.max_day; i++) days.push(i);
 
-    const tickText = days.map(d => {
+    // 모바일에서는 5일 간격 + Today + 말일만 tick 표시 (겹침 방지)
+    const isMobile = window.matchMedia("(max-width: 640px)").matches;
+    const tickDays = isMobile
+      ? Array.from(new Set([1, 5, 10, 15, 20, 25, chartData.max_day, chartData.today_day].filter(d => d && d >= 1 && d <= chartData.max_day))).sort((a, b) => a - b)
+      : days;
+
+    const tickText = tickDays.map(d => {
       // 주말·공휴일은 붉은 HTML로 표기 (Plotly는 태그 해석 지원)
       return redDays.has(d)
         ? `<span style="color:#C00000;font-weight:bold;">${d}</span>`
@@ -494,7 +500,7 @@
           pad: { b: 4 },
         },
         xaxis: {
-          title: "", tickmode: "array", tickvals: days, ticktext: tickText,
+          title: "", tickmode: "array", tickvals: tickDays, ticktext: tickText,
           tickfont: { size: 11, color: "#64748B" },
           showline: true, linecolor: "#CBD5E1",
           showgrid: false, zeroline: false,
@@ -525,8 +531,8 @@
       },
       {
         x: days, y: curr, mode: "lines+markers", name: currLabel,
-        line: { color: color, width: 2 },
-        marker: { color: color, size: 5 },
+        line: { color: color, width: 2.2 },
+        marker: { color: color, size: 6 },
         hovertemplate: `${currLabel} %{x}일 · %{y:,}편<extra></extra>`,
       },
     ]);
