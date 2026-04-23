@@ -9,9 +9,9 @@ import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from data_loader import build_current_month, build_previous_month
-from aggregator import (agg_airline, agg_daily, agg_gate, agg_region, agg_total,
-                        pct, prepare, rows_to_df)
+from icn_utils.data_loader import build_current_month, build_previous_month
+from icn_utils.aggregator import (agg_airline, agg_daily, agg_gate, agg_region, agg_total,
+                                  pct, prepare, rows_to_df)
 
 st.set_page_config(
     page_title="인천공항 국제선 출발편 현황",
