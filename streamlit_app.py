@@ -322,6 +322,25 @@ df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_labe
 
 tab1, tab2 = st.tabs(["추이 차트", "상세 테이블"])
 with tab1:
+    # 수동 범례 (실선=이번달, 점선=지난달)
+    st.markdown(
+        f"""<div style="display:flex;gap:24px;font-size:13px;color:#475569;
+                        margin:0 0 10px 8px;align-items:center;">
+          <span style="font-weight:600;color:#64748b;">기간</span>
+          <span style="display:inline-flex;align-items:center;gap:8px;">
+            <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2"
+              stroke="#334155" stroke-width="2.5"/></svg>
+            <b style="color:#1a1a1a;">{curr_label}</b>
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:8px;">
+            <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2"
+              stroke="#334155" stroke-width="2.5" stroke-dasharray="5,4"/></svg>
+            <b style="color:#1a1a1a;">{prev_label}</b>
+          </span>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
     chart_src = pd.DataFrame({
         f"T1|{prev_label}": df_daily[f"T1_{prev_label}"].values,
         f"T1|{curr_label}": df_daily[f"T1_{curr_label}"].values,
@@ -332,12 +351,33 @@ with tab1:
     long = pd.melt(chart_src, id_vars="일", var_name="시리즈", value_name="편수")
     long[["터미널", "기간"]] = long["시리즈"].str.split("|", expand=True)
 
+    # 현재달 기준 주말·공휴일 일자 → X축 라벨 색상용
+    try:
+        import holidays as _holidays
+        _kr_hol = _holidays.KR(years=curr_year)
+    except Exception:
+        _kr_hol = {}
+    red_days = []
+    for _d in range(1, max_day + 1):
+        _dt = date(curr_year, curr_month, _d)
+        if _dt.weekday() >= 5 or _dt in _kr_hol:
+            red_days.append(_d)
+    red_expr = f"indexof({red_days}, datum.value) >= 0 ? '#C00000' : '#334155'"
+
     chart = (
         alt.Chart(long)
         .mark_line(strokeWidth=2.5, point=alt.OverlayMarkDef(size=25, filled=True))
         .encode(
-            x=alt.X("일:Q", title="일자",
-                    axis=alt.Axis(tickMinStep=1, labelFontSize=11)),
+            x=alt.X(
+                "일:Q", title="일자",
+                scale=alt.Scale(domain=[1, max_day], nice=False, padding=6),
+                axis=alt.Axis(
+                    values=list(range(1, max_day + 1)),
+                    tickMinStep=1, labelFontSize=11,
+                    labelColor={"expr": red_expr},
+                    labelFontWeight={"expr": f"indexof({red_days}, datum.value) >= 0 ? 'bold' : 'normal'"},
+                ),
+            ),
             y=alt.Y("편수:Q", title="항공편수",
                     scale=alt.Scale(zero=False, nice=True, padding=10),
                     axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
@@ -348,8 +388,8 @@ with tab1:
             ),
             strokeDash=alt.StrokeDash(
                 "기간:N",
-                scale=alt.Scale(domain=[prev_label, curr_label], range=[[5, 4], [1, 0]]),
-                legend=alt.Legend(title="기간", orient="top"),
+                scale=alt.Scale(domain=[curr_label, prev_label], range=[[1, 0], [5, 4]]),
+                legend=None,
             ),
             tooltip=[
                 alt.Tooltip("일:Q", title="일자"),
@@ -358,7 +398,7 @@ with tab1:
                 alt.Tooltip("편수:Q", title="편수", format=","),
             ],
         )
-        .properties(width=1180, height=220)
+        .properties(width="container", height=220)
         .facet(
             row=alt.Row(
                 "터미널:N",
