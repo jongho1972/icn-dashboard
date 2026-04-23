@@ -307,7 +307,8 @@ df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_labe
 if True:
     st.markdown(
         f"""<div style="display:flex;gap:24px;font-size:13px;color:#475569;
-                        margin:0 0 10px 8px;align-items:center;">
+                        margin:0 8px 10px 0;align-items:center;
+                        justify-content:flex-end;">
           <span style="display:inline-flex;align-items:center;gap:8px;">
             <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2"
               stroke="#334155" stroke-width="2.5"/></svg>
@@ -362,10 +363,11 @@ if True:
                 scale=alt.Scale(domain=[1, max_day], nice=False, padding=6),
                 axis=alt.Axis(
                     values=list(range(1, max_day + 1)),
-                    tickMinStep=1, labelFontSize=11,
+                    tickCount=max_day, tickMinStep=1, labelFontSize=11,
                     labelColor={"expr": weekend_color_expr},
                     labelFontWeight={"expr": weekend_weight_expr},
-                    labelOverlap=False, labelPadding=6,
+                    labelOverlap=False, labelFlush=False, labelPadding=6,
+                    labelExpr="datum.value",
                     domain=True, domainColor="#CBD5E1",
                     ticks=True, tickColor="#CBD5E1", tickSize=4,
                     grid=False,
