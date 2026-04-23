@@ -159,13 +159,11 @@ table.icn th.t1-last, table.icn td.t1-last {
 }
 table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 18px; }
 
-/* 합계(소계) 행: 상단 네이비 라인 + 연한 배경 + bold */
+/* 합계(소계) 행: 연한 배경 + bold로만 구분 */
 table.icn tr.total-row td {
   background: var(--blue-025);
   color: var(--navy-900);
   font-weight: 700;
-  border-top: 1px solid var(--navy-900);
-  border-bottom: 1.5px solid var(--navy-900);
 }
 table.icn tr.total-row td.label {
   background: var(--blue-025);
