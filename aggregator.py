@@ -56,12 +56,17 @@ def _cnt(df, terminal, **kwargs):
     return len(d)
 
 
-def agg_total(prev, curr):
-    return [{
-        "구분": "전체",
-        "T1_prev": _cnt(prev, "T1"), "T1_curr": _cnt(curr, "T1"),
-        "T2_prev": _cnt(prev, "T2"), "T2_curr": _cnt(curr, "T2"),
-    }]
+def agg_total(prev, curr, days):
+    t1p, t1c = _cnt(prev, "T1"), _cnt(curr, "T1")
+    t2p, t2c = _cnt(prev, "T2"), _cnt(curr, "T2")
+    return [
+        {"구분": "월누적",
+         "T1_prev": t1p, "T1_curr": t1c,
+         "T2_prev": t2p, "T2_curr": t2c},
+        {"구분": "일평균",
+         "T1_prev": round(t1p / days), "T1_curr": round(t1c / days),
+         "T2_prev": round(t2p / days), "T2_curr": round(t2c / days)},
+    ]
 
 
 def agg_daily(prev, curr, max_day):

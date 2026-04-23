@@ -284,13 +284,13 @@ st.markdown("### 전체")
 st.markdown(
     f'<div style="color:#1a1a1a;font-size:17px;font-weight:500;'
     f'margin:-2px 0 12px 2px;line-height:1.7;letter-spacing:-0.01em;">'
-    f'<b>합계</b> {tot_c:,}편{_trend(tot_c, tot_p)}'
+    f'<b>월누적</b> {tot_c:,}편{_trend(tot_c, tot_p)}'
     f'&nbsp;&nbsp;&middot;&nbsp;&nbsp;'
-    f'<b>일평균</b> {avg_c:,.0f}편{_trend(avg_c, avg_p)}'
+    f'<b>일평균</b> {avg_c:,.0f}편'
     f'</div>',
     unsafe_allow_html=True,
 )
-df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
+df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
 st.markdown("### 항공사별")
