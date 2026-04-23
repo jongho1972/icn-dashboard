@@ -290,7 +290,7 @@ st.markdown(
     f'</div>',
     unsafe_allow_html=True,
 )
-df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
+df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
 st.markdown("### 항공사별")
