@@ -331,6 +331,38 @@ def _github_append(entries: list[DestEntry], token: str) -> dict:
     return r2.json()
 
 
+@app.get("/api/destinations-health")
+async def destinations_health():
+    """PAT + GitHub Contents API 접근 가능 여부만 확인 (커밋 없음)."""
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        return JSONResponse(
+            {"ok": False, "error": "GITHUB_TOKEN env not set"},
+            status_code=500,
+        )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    try:
+        r = requests.get(GH_API, headers=headers, params={"ref": GH_BRANCH}, timeout=15)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"request failed: {e}"}, status_code=500)
+    if r.status_code == 200:
+        d = r.json()
+        return {
+            "ok": True,
+            "file_path": d.get("path"),
+            "file_sha": (d.get("sha") or "")[:7],
+            "file_size": d.get("size"),
+        }
+    return JSONResponse(
+        {"ok": False, "status": r.status_code, "body": r.text[:200]},
+        status_code=r.status_code,
+    )
+
+
 @app.post("/api/add-destinations")
 async def add_destinations(req: AddDestRequest):
     token = os.environ.get("GITHUB_TOKEN", "")
