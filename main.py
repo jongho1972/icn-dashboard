@@ -139,7 +139,7 @@ def _trend_html(c, p) -> str:
     sign = "+" if r > 0 else ("−" if r < 0 else "±")
     return (f' <span style="color:{color};font-weight:500;'
             f'font-variant-numeric:tabular-nums;">'
-            f'{sign}{abs(r):.1%}</span>')
+            f'(전월비 {sign}{abs(r):.1%})</span>')
 
 
 # ---------- 주말·공휴일 계산 ----------
