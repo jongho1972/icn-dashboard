@@ -90,11 +90,15 @@ h1.page-title {
 
 /* ===== 업데이트 배지 ===== */
 .update-badge {
-  display: inline-flex; align-items: center;
-  background: transparent; color: var(--slate-500);
-  padding: 0; font-size: 13px; line-height: 1.5; font-weight: 500;
+  display: inline !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important; border-radius: 0 !important;
+  color: var(--slate-500);
+  font-size: 13px; line-height: 1.5; font-weight: 500;
   font-family: ui-monospace, "SF Mono", monospace;
-  border: none; letter-spacing: 0;
+  letter-spacing: 0;
 }
 
 /* ===== 테이블 (Carbon style: 가로선 제거, 행 구분만) ===== */
