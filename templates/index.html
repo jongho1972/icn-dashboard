@@ -485,13 +485,13 @@
         x: days, y: prev, mode: "lines", name: prevLabel,
         line: { color: color, width: 1.4, dash: "3px,3px" },
         opacity: 0.75,
-        hovertemplate: `%{x}일 · ${prevLabel} · %{y:,}편<extra></extra>`,
+        hovertemplate: `${prevLabel} %{x}일 · %{y:,}편<extra></extra>`,
       },
       {
         x: days, y: curr, mode: "lines+markers", name: currLabel,
         line: { color: color, width: 2 },
         marker: { color: color, size: 5 },
-        hovertemplate: `%{x}일 · ${currLabel} · %{y:,}편<extra></extra>`,
+        hovertemplate: `${currLabel} %{x}일 · %{y:,}편<extra></extra>`,
       },
     ]);
 
