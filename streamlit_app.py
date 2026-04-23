@@ -364,6 +364,10 @@ with tab1:
             red_days.append(_d)
     red_expr = f"indexof({red_days}, datum.value) >= 0 ? '#C00000' : '#334155'"
 
+    # 두 터미널 공통 Y축 도메인 (절대 비교)
+    y_min = int(long["편수"].min()) - 10
+    y_max = int(long["편수"].max()) + 10
+
     def _terminal_chart(terminal, color):
         df_t = long[long["터미널"] == terminal]
         return (
@@ -381,8 +385,8 @@ with tab1:
                     ),
                 ),
                 y=alt.Y("편수:Q", title="항공편수",
-                        scale=alt.Scale(zero=False, nice=True, padding=10),
-                        axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
+                        scale=alt.Scale(domain=[y_min, y_max], nice=True),
+                        axis=alt.Axis(labelFontSize=11, format=",d", tickCount=8)),
                 color=alt.value(color),
                 strokeDash=alt.StrokeDash(
                     "기간:N",
