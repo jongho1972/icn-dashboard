@@ -149,13 +149,7 @@ table.icn th.t1-last, table.icn td.t1-last {
 }
 table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 18px; }
 
-/* 합계행: 연한 배경 + navy 상하 라인 */
-table.icn tr.total-row td {
-  background: var(--blue-050); color: var(--navy-900); font-weight: 700;
-  border-top: 1px solid var(--navy-900);
-  border-bottom: 1.5px solid var(--navy-900);
-}
-table.icn tr.total-row td.label { background: var(--blue-050); }
+/* 합계행 강조 제거 — 모든 행 동일 스타일로 통일 */
 
 /* ===== 캡션·탭 ===== */
 [data-testid="stCaptionContainer"] {
