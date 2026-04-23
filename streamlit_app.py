@@ -261,7 +261,6 @@ def df_to_html(df, prev_label, curr_label, total_row_idx=None):
     cols = list(df.columns)
     pct_idx = {3, 6}
     t1_last_idx = 3
-    figure_dash = "‒"  # U+2012 figure dash (숫자폭과 일치)
     for ri, (_, row) in enumerate(df.iterrows()):
         tr_cls = ' class="total-row"' if total_row_idx is not None and ri == total_row_idx else ""
         parts.append(f'<tr{tr_cls}>')
@@ -271,8 +270,9 @@ def df_to_html(df, prev_label, curr_label, total_row_idx=None):
             if c == "구분":
                 parts.append(f'<td class="label">{v}</td>')
             elif ci in pct_idx:
+                # 값 없음(NaN 또는 관련 기본 데이터가 0) → 공란
                 if pd.isna(v):
-                    parts.append(f'<td class="dash{t1last}">{figure_dash}</td>')
+                    parts.append(f'<td class="{t1last.strip()}"></td>')
                 elif v > 0:
                     parts.append(f'<td class="pos{t1last}">+{v:.1%}</td>')
                 elif v < 0:
@@ -280,10 +280,9 @@ def df_to_html(df, prev_label, curr_label, total_row_idx=None):
                 else:
                     parts.append(f'<td class="{t1last.strip()}">{v:+.1%}</td>')
             else:
-                if pd.isna(v):
-                    parts.append(f'<td class="dash{t1last}">{figure_dash}</td>')
-                elif v == 0:
-                    parts.append(f'<td class="dash{t1last}">0</td>')
+                # 데이터가 없거나 0 → 공란 처리
+                if pd.isna(v) or v == 0:
+                    parts.append(f'<td class="{t1last.strip()}"></td>')
                 else:
                     cls = f' class="{t1last.strip()}"' if t1last else ""
                     parts.append(f"<td{cls}>{v:,.0f}</td>")
@@ -310,35 +309,7 @@ st.markdown(
 df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
-st.markdown("### 항공사별")
-df_airline = rows_to_df(agg_airline(prev_same, curr), prev_label, curr_label)
-render_table(df_airline)
-
-st.markdown("### 목적지별 (지역)")
-df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
-render_table(df_region)
-
-st.markdown("### 게이트별")
-# D-1 기준으로 재필터 (탑승구 미배정 미래편 영향 제거)
-d_minus_1 = today - timedelta(days=1)
-gate_cutoff = d_minus_1.day if (d_minus_1.year == curr_year and d_minus_1.month == curr_month) else max_day
-gate_prev = prev_same[prev_same["DD"] <= gate_cutoff]
-gate_curr = curr[curr["DD"] <= gate_cutoff]
-st.caption(
-    f"기준: {prev_label}·{curr_label} 1~{gate_cutoff}일 "
-    f"(오늘 D-1 = {d_minus_1.strftime('%Y-%m-%d')}까지, 실제 운항 완료분 기준)"
-)
-df_gate = rows_to_df(agg_gate(gate_prev, gate_curr), prev_label, curr_label)
-render_table(df_gate, total_row_idx=0)
-with st.expander("게이트 분류 기준"):
-    st.markdown(
-        "- **동편**: 탑승구 ≤ 25 또는 251~299\n"
-        "- **중앙**: 26~28\n"
-        "- **서편**: 29~50 또는 200~250\n"
-        "- **탑승동**: 51~199"
-    )
-
-# ---------- 일자별 ----------
+# ---------- 일자별 (전체 다음 위치) ----------
 st.markdown(f"### 일자별 (1~{max_day}일)")
 df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_label)
 
@@ -462,6 +433,39 @@ with tab1:
 
 with tab2:
     render_table(df_daily)
+
+# ---------- 항공사별 ----------
+st.markdown("### 항공사별")
+df_airline = rows_to_df(agg_airline(prev_same, curr), prev_label, curr_label)
+render_table(df_airline)
+
+# ---------- 도착지별 ----------
+st.markdown("### 도착지별")
+df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
+render_table(df_region)
+
+# ---------- 게이트별 ----------
+st.markdown("### 게이트별")
+# D-1 기준으로 재필터 (탑승구 미배정 미래편 영향 제거)
+d_minus_1 = today - timedelta(days=1)
+gate_cutoff = d_minus_1.day if (d_minus_1.year == curr_year and d_minus_1.month == curr_month) else max_day
+gate_prev = prev_same[prev_same["DD"] <= gate_cutoff]
+gate_curr = curr[curr["DD"] <= gate_cutoff]
+st.markdown(
+    f'<div class="period-note">'
+    f'기간 : {prev_label}/{curr_label} 1~{gate_cutoff}일 (운항정보 마감 기준)'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+df_gate = rows_to_df(agg_gate(gate_prev, gate_curr), prev_label, curr_label)
+render_table(df_gate, total_row_idx=0)
+with st.expander("게이트 분류 기준"):
+    st.markdown(
+        "- **동편**: 탑승구 ≤ 25 또는 251~299\n"
+        "- **중앙**: 26~28\n"
+        "- **서편**: 29~50 또는 200~250\n"
+        "- **탑승동**: 51~199"
+    )
 
 # ---------- 푸터 ----------
 with st.expander("데이터 출처·QA"):
