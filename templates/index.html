@@ -155,6 +155,11 @@
     }
     footer.footnote li { margin-bottom: 2px; }
     footer.footnote b { color: var(--slate-700); font-weight: 600; }
+    footer.footnote a {
+      color: var(--slate-500); text-decoration: underline;
+      text-decoration-color: var(--slate-200); word-break: break-all;
+    }
+    footer.footnote a:hover { color: var(--navy-900); text-decoration-color: var(--navy-900); }
 
     /* 차트 범례 */
     .chart-legend {
@@ -216,12 +221,11 @@
         </ul>
       </div>
       <div class="footnote-block">
-        <div class="footnote-title">데이터 출처 · QA</div>
-        <ul>
-          <li>출처: 한국공항공사 인천공항 실시간 출발 API</li>
-          <li>1시간 캐시 적용 — 새로고침해도 같은 결과. 캐시 만료 후 다음 접속 시 API 재호출.</li>
-          <li>매일 17:00 KST 자동 수집으로 Daily_Data 레포 갱신.</li>
-        </ul>
+        <div>
+          <b>데이터 출처</b> : 인천국제공항공사_여객기 운항 현황 상세 조회 서비스
+          (<a href="https://www.data.go.kr/data/15112968/openapi.do#/"
+              target="_blank" rel="noopener">https://www.data.go.kr/data/15112968/openapi.do#/</a>)
+        </div>
       </div>
     </footer>
 
