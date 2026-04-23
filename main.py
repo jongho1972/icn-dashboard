@@ -31,7 +31,7 @@ from icn_utils.aggregator import (
 )
 from icn_utils.data_loader import (
     build_current_month, build_previous_month,
-    load_daily_range, process_raw,
+    load_daily_month, load_final_month, process_raw,
 )
 
 load_dotenv()
@@ -419,7 +419,7 @@ async def healthz():
 
 
 # ---------- Raw 데이터 Excel 다운로드 ----------
-MAX_EXPORT_DAYS = 180  # 한번에 최대 180일
+MAX_EXPORT_DAYS = 366  # 한번에 최대 1년 (윤년 포함)
 
 
 @app.get("/api/export-raw")
@@ -443,18 +443,39 @@ async def export_raw(start: str, end: str):
             400, f"최대 {MAX_EXPORT_DAYS}일 범위까지만 내보낼 수 있습니다 (요청: {span}일)."
         )
 
-    raw = load_daily_range(
-        str(DAILY_DIR),
-        start_dt.strftime("%Y%m%d"),
-        end_dt.strftime("%Y%m%d"),
-    )
-    if len(raw) == 0:
-        raise HTTPException(404, "해당 기간의 데이터가 없습니다.")
+    # 범위에 걸친 월 목록 (YYYYMM)
+    months: list[str] = []
+    cur = start_dt.replace(day=1)
+    while cur <= end_dt:
+        months.append(cur.strftime("%Y%m"))
+        cur = (cur.replace(year=cur.year + 1, month=1)
+               if cur.month == 12 else cur.replace(month=cur.month + 1))
 
     dest = load_dest()
-    df = process_raw(raw, dest)
+    # 월별로 로드: Final_Data cum(이미 가공) 우선, 없으면 Daily_Data + process_raw
+    dfs = []
+    for yyyymm in months:
+        y, m = int(yyyymm[:4]), int(yyyymm[4:])
+        cum = load_final_month(str(FINAL_DIR), yyyymm)
+        if len(cum) > 0:
+            part = cum[(cum["YYYY"] == y) & (cum["MM"] == m)]
+        else:
+            raw_daily = load_daily_month(str(DAILY_DIR), yyyymm)
+            if len(raw_daily) == 0:
+                continue
+            part = process_raw(raw_daily, dest)
+            part = part[(part["YYYY"] == y) & (part["MM"] == m)]
+        if len(part) > 0:
+            dfs.append(part)
+
+    if not dfs:
+        raise HTTPException(404, "해당 기간의 데이터가 없습니다.")
+
+    df = pd.concat(dfs, ignore_index=True).drop_duplicates("Flight_Key")
     # 실제 운항일 기준 필터
     df = df[(df["YYYYMMDD"] >= start_dt) & (df["YYYYMMDD"] <= end_dt)]
+    if len(df) == 0:
+        raise HTTPException(404, "해당 기간의 데이터가 없습니다.")
     df = df.sort_values(["YYYYMMDD", "출발시각", "출발분", "운항편명"]).reset_index(drop=True)
 
     # 대시보드 집계 기준 구분 컬럼 추가
@@ -474,8 +495,9 @@ async def export_raw(start: str, end: str):
     ]
     df = df[[c for c in cols if c in df.columns]]
     df["YYYYMMDD"] = df["YYYYMMDD"].dt.strftime("%Y-%m-%d")
-    df["scheduleDateTime"] = df["scheduleDateTime"].dt.strftime("%Y-%m-%d %H:%M")
-    df["estimatedDateTime"] = df["estimatedDateTime"].dt.strftime("%Y-%m-%d %H:%M")
+    for dt_col in ("scheduleDateTime", "estimatedDateTime"):
+        if dt_col in df.columns:
+            df[dt_col] = df[dt_col].dt.strftime("%Y-%m-%d %H:%M")
 
     # CSV (UTF-8 BOM) — Excel로 열어도 한글 깨지지 않음, 매우 빠름
     buf = BytesIO()
