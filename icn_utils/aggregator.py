@@ -27,14 +27,14 @@ def gate_group(g):
         n = int(g)
     except (ValueError, TypeError):
         return None
-    # 동편: ≤25 또는 ≥251
-    if n <= 25 or n >= 251: return "동편"
-    # 중앙: 26~28
-    if 26 <= n <= 28: return "중앙"
+    # 중앙: 26~28 또는 250~251
+    if 26 <= n <= 28 or 250 <= n <= 251: return "중앙"
+    # 동편: ≤25 또는 ≥252
+    if n <= 25 or n >= 252: return "동편"
     # 탑승동: 100~199
     if 100 <= n <= 199: return "탑승동"
-    # 서편: 29~99 또는 200~250
-    if 29 <= n <= 99 or 200 <= n <= 250: return "서편"
+    # 서편: 29~99 또는 200~249
+    if 29 <= n <= 99 or 200 <= n <= 249: return "서편"
     return None
 
 
