@@ -459,7 +459,7 @@ if True:
             )
             today_label = (
                 alt.Chart(pd.DataFrame({"일": [today_day], "y": [y_max]}))
-                .mark_text(text="오늘", color="#C00000",
+                .mark_text(text="Today", color="#C00000",
                            fontSize=11, fontWeight="bold",
                            dx=4, dy=-2, align="left", baseline="top")
                 .encode(
