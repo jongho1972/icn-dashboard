@@ -112,19 +112,28 @@ table.icn {
                "Pretendard", "Noto Sans KR", sans-serif;
   color: #111827; letter-spacing: -0.01em;
   border-top: 1.5px solid var(--navy-900);
+  table-layout: fixed;
 }
 table.icn th, table.icn td {
   border: none;
   border-bottom: 1px solid var(--slate-050);
-  padding: 7px 14px 7px 10px;
+  padding: 7px 18px 7px 8px;
 }
 table.icn thead th {
   background: transparent; font-weight: 600; font-size: 12px;
-  color: var(--slate-500); text-align: center;
-  padding: 10px 12px; line-height: 1.35;
+  color: var(--slate-500); text-align: right;
+  padding: 10px 18px 10px 8px; line-height: 1.35;
   letter-spacing: 0.01em;
   border-bottom: 1px solid var(--slate-200);
 }
+/* rowspan '구분' + T1/T2 그룹 헤더만 중앙 */
+table.icn thead th[rowspan],
+table.icn thead th.t1-group,
+table.icn thead th.t2-group {
+  text-align: center; padding: 10px 12px;
+}
+/* 첫 열(구분) 고정 너비 */
+table.icn colgroup col.col-label { width: 96px; }
 table.icn thead th.t1-group {
   background: var(--blue-025); color: var(--navy-900);
   border-bottom: 1px solid var(--slate-200);
@@ -133,10 +142,11 @@ table.icn thead th.t2-group {
   background: var(--orange-025); color: var(--orange-600);
   border-bottom: 1px solid var(--slate-200);
 }
-table.icn td { text-align: center; }
+table.icn td { text-align: right; }
 table.icn td.label {
   text-align: center;
   background: transparent; color: var(--slate-700); font-weight: 500;
+  padding: 7px 12px;
 }
 table.icn td.pos { color: var(--blue-500); font-weight: 500; }
 table.icn td.neg { color: var(--red-600); font-weight: 500; }
@@ -240,7 +250,15 @@ def _trend(c, p):
 
 # ---------- 테이블 렌더러 ----------
 def df_to_html(df, prev_label, curr_label, total_row_idx=None):
-    parts = ['<table class="icn"><thead>']
+    parts = [
+        '<table class="icn">',
+        '<colgroup>',
+        '<col class="col-label">',
+        '<col><col><col>',
+        '<col><col><col>',
+        '</colgroup>',
+        '<thead>',
+    ]
     parts.append('<tr>')
     parts.append('<th rowspan="2">구분</th>')
     parts.append('<th colspan="3" class="t1-group t1-last">T1</th>')
