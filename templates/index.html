@@ -136,20 +136,25 @@
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
 
-    /* Details (분류 기준·QA) */
-    details {
-      margin-top: 10px; font-size: 13px; color: var(--slate-500);
+    /* 각주 (페이지 하단) */
+    footer.footnote {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--slate-100);
+      display: flex; gap: 40px; flex-wrap: wrap;
+      font-size: 12px; color: var(--slate-500);
+      line-height: 1.7; letter-spacing: -0.005em;
     }
-    details summary {
-      cursor: pointer; padding: 6px 8px;
-      border: 1px solid var(--slate-100); border-radius: 4px;
-      display: inline-block; color: var(--slate-700);
+    footer.footnote .footnote-block { flex: 1; min-width: 280px; }
+    footer.footnote .footnote-title {
+      font-weight: 600; color: var(--slate-700); font-size: 12px;
+      margin-bottom: 6px;
     }
-    details[open] summary { color: var(--navy-900); font-weight: 600; }
-    details .body {
-      padding: 10px 14px; font-size: 13px; line-height: 1.7;
-      color: var(--slate-700);
+    footer.footnote ul {
+      margin: 0; padding-left: 16px;
     }
+    footer.footnote li { margin-bottom: 2px; }
+    footer.footnote b { color: var(--slate-700); font-weight: 600; }
 
     /* 차트 범례 */
     .chart-legend {
@@ -199,28 +204,26 @@
     <h3>게이트별</h3>
     <div class="section-note">{{ gate_note }}</div>
     {{ gate_html | safe }}
-    <details>
-      <summary>게이트 분류 기준</summary>
-      <div class="body">
-        <ul style="margin: 6px 0 0 18px; padding: 0;">
+
+    <footer class="footnote">
+      <div class="footnote-block">
+        <div class="footnote-title">게이트 분류 기준</div>
+        <ul>
           <li><b>동편</b>: 탑승구 1 ~ 25 또는 252 ~ 299</li>
           <li><b>중앙</b>: 26 ~ 28 또는 250 ~ 251</li>
           <li><b>서편</b>: 29 ~ 99 또는 200 ~ 249</li>
           <li><b>탑승동</b>: 100 ~ 199</li>
         </ul>
       </div>
-    </details>
-
-    <details style="margin-top: 24px;">
-      <summary>데이터 출처 · QA</summary>
-      <div class="body">
-        <ul style="margin: 6px 0 0 18px; padding: 0;">
+      <div class="footnote-block">
+        <div class="footnote-title">데이터 출처 · QA</div>
+        <ul>
           <li>출처: 한국공항공사 인천공항 실시간 출발 API</li>
           <li>1시간 캐시 적용 — 새로고침해도 같은 결과. 캐시 만료 후 다음 접속 시 API 재호출.</li>
           <li>매일 17:00 KST 자동 수집으로 Daily_Data 레포 갱신.</li>
         </ul>
       </div>
-    </details>
+    </footer>
 
   </div>
 
