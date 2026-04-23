@@ -72,9 +72,72 @@
     }
     .copy-btn:hover { background: var(--navy-700); }
     .copy-btn:disabled { background: var(--slate-400); cursor: wait; }
-    /* 캡처 중 버튼/업데이트 배지 숨김 처리 */
+    /* 캡처 중 버튼/업데이트 배지/미매핑 배너 숨김 처리 */
     body.capturing .copy-btn,
-    body.capturing .update-badge { visibility: hidden; }
+    body.capturing .update-badge,
+    body.capturing .unmapped-banner { visibility: hidden; }
+
+    /* 미매핑 경고 배너 */
+    .unmapped-banner {
+      margin: 12px 0 0 0; padding: 10px 14px;
+      background: #FEF3C7; border: 1px solid #FBBF24; border-radius: 6px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      flex-wrap: wrap;
+      font-size: 13px; color: #78350F;
+    }
+    .unmapped-banner b { color: #78350F; }
+    .unmapped-banner .open-modal-btn {
+      background: #78350F; color: #fff;
+      border: none; padding: 6px 12px; border-radius: 4px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit;
+    }
+    .unmapped-banner .open-modal-btn:hover { background: #451A03; }
+
+    /* 모달 */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 1000; align-items: flex-start; justify-content: center;
+      padding: 40px 16px; overflow-y: auto;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 8px; width: 100%; max-width: 720px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+      padding: 24px 28px;
+    }
+    .modal h2 { margin: 0 0 8px 0; font-size: 18px; color: var(--navy-900); }
+    .modal p { color: var(--slate-500); font-size: 13px; margin: 0 0 16px 0; }
+    .modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .modal th { text-align: left; padding: 8px 6px; color: var(--slate-500);
+                 font-weight: 600; border-bottom: 1px solid var(--slate-200); }
+    .modal td { padding: 8px 6px; border-bottom: 1px solid var(--slate-050); }
+    .modal input, .modal select {
+      width: 100%; padding: 5px 8px; font-size: 13px;
+      border: 1px solid var(--slate-200); border-radius: 4px;
+      font-family: inherit;
+    }
+    .modal input:focus, .modal select:focus {
+      outline: 2px solid var(--blue-050); border-color: var(--blue-500);
+    }
+    .modal .dest-cell { font-weight: 500; color: var(--slate-700); }
+    .modal-actions {
+      margin-top: 18px; display: flex; gap: 8px; justify-content: flex-end;
+      align-items: center;
+    }
+    .modal-actions .result { flex: 1; font-size: 12px; color: var(--slate-500); }
+    .modal-actions .result.ok { color: #047857; font-weight: 600; }
+    .modal-actions .result.err { color: var(--red-600); font-weight: 600; }
+    .modal-btn {
+      padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; border: none;
+    }
+    .modal-btn.cancel { background: transparent; color: var(--slate-500);
+                        border: 1px solid var(--slate-200); }
+    .modal-btn.primary { background: var(--navy-900); color: #fff; }
+    .modal-btn.primary:hover { background: var(--navy-700); }
+    .modal-btn.primary:disabled { background: var(--slate-400); cursor: wait; }
 
     /* 섹션 헤더 */
     h3 {
@@ -203,6 +266,16 @@
     </div>
     <div class="period-note">{{ period_note }}</div>
 
+    {% if unmapped %}
+    <div class="unmapped-banner">
+      <div>
+        ⚠️ <b>매핑 안 된 신규 도착지 {{ unmapped|length }}개</b> — 집계에서 "국가/지역"이 빈 상태로 제외됩니다.
+        &nbsp;<span style="color:#92400E;">{{ unmapped|join(", ") }}</span>
+      </div>
+      <button type="button" class="open-modal-btn" onclick="openAddModal()">추가하기</button>
+    </div>
+    {% endif %}
+
     <div class="summary">{{ summary_html | safe }}</div>
     {{ total_html | safe }}
 
@@ -251,6 +324,47 @@
     </footer>
 
   </div>
+
+  {% if unmapped %}
+  <div id="addModal" class="modal-backdrop" onclick="if(event.target===this) closeAddModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2>신규 도착지 매핑 추가</h2>
+      <p>아래 도착지에 <b>국가</b>와 <b>지역</b>을 입력하고 저장하면 GitHub 레포 <code>항공편목적지.txt</code>에 커밋됩니다. Render가 감지해 재배포 후 반영됩니다.</p>
+      <form id="addForm" onsubmit="submitAdd(event)">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:35%">도착지</th>
+              <th style="width:35%">국가</th>
+              <th style="width:30%">지역</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in unmapped %}
+            <tr>
+              <td class="dest-cell">{{ d }}</td>
+              <td><input name="country_{{ loop.index0 }}" placeholder="예: 대만" required></td>
+              <td>
+                <select name="region_{{ loop.index0 }}" required>
+                  <option value="">선택</option>
+                  {% for r in regions %}
+                  <option value="{{ r }}">{{ r }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="modal-actions">
+          <div id="addResult" class="result"></div>
+          <button type="button" class="modal-btn cancel" onclick="closeAddModal()">취소</button>
+          <button type="submit" class="modal-btn primary" id="addSubmit">레포에 커밋</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 
   <script>
     const chartData = {{ chart_data_json | safe }};
@@ -418,6 +532,59 @@
         }
       });
     })();
+
+    // ===== 신규 도착지 매핑 모달 =====
+    {% if unmapped %}
+    const _unmappedDests = {{ unmapped | tojson }};
+    function openAddModal() {
+      document.getElementById("addModal").classList.add("open");
+    }
+    function closeAddModal() {
+      document.getElementById("addModal").classList.remove("open");
+    }
+    async function submitAdd(ev) {
+      ev.preventDefault();
+      const form = ev.target;
+      const entries = _unmappedDests.map((d, i) => ({
+        destination: d,
+        country: form[`country_${i}`].value.trim(),
+        region: form[`region_${i}`].value.trim(),
+      }));
+      const invalid = entries.find(e => !e.country || !e.region);
+      if (invalid) {
+        showResult("모든 도착지의 국가와 지역을 입력하세요.", "err");
+        return;
+      }
+      const btn = document.getElementById("addSubmit");
+      btn.disabled = true; btn.textContent = "커밋 중...";
+      showResult("GitHub 커밋 중...", "");
+      try {
+        const res = await fetch("/api/add-destinations", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({entries}),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          const sha = (data.commit_sha || "").slice(0, 7);
+          showResult(`✅ ${data.count}개 추가 · 커밋 ${sha}. 재배포 완료 후 반영됩니다.`, "ok");
+          btn.textContent = "완료";
+          setTimeout(() => location.reload(), 4000);
+        } else {
+          showResult(`❌ ${data.detail || data.error || "실패"}`, "err");
+          btn.disabled = false; btn.textContent = "레포에 커밋";
+        }
+      } catch (e) {
+        showResult(`❌ 네트워크 오류: ${e.message}`, "err");
+        btn.disabled = false; btn.textContent = "레포에 커밋";
+      }
+    }
+    function showResult(text, cls) {
+      const el = document.getElementById("addResult");
+      el.textContent = text;
+      el.className = "result " + (cls || "");
+    }
+    {% endif %}
   </script>
 </body>
 </html>

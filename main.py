@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import base64
 import json
 import math
 import os
@@ -14,11 +15,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
 from icn_utils.aggregator import (
     GATES, REGIONS, AIRLINES,
@@ -188,6 +191,12 @@ async def index(request: Request):
     max_day = int(curr["DD"].max())
     prev_same = prev[prev["DD"] <= max_day]
 
+    # 미매핑 도착지(매핑 테이블에 없는 목적지) 감지
+    _all = pd.concat([prev_same, curr], ignore_index=True)
+    unmapped = sorted(
+        _all.loc[_all["국가"].isna(), "목적지"].dropna().unique().tolist()
+    )
+
     prev_label = f"{prev_month}월"
     curr_label = f"{curr_month}월"
 
@@ -266,8 +275,84 @@ async def index(request: Request):
             "gate_note": gate_note,
             "daily_html": daily_html,
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
+            "unmapped": unmapped,
+            "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
         },
     )
+
+
+# ---------- 도착지 매핑 추가 (GitHub Contents API) ----------
+GH_OWNER = "jongho1972"
+GH_REPO = "icn-dashboard"
+GH_PATH = "항공편목적지.txt"
+GH_BRANCH = "main"
+GH_API = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{GH_PATH}"
+
+
+class DestEntry(BaseModel):
+    destination: str = Field(..., min_length=1)
+    country: str = Field(..., min_length=1)
+    region: str = Field(..., min_length=1)
+
+
+class AddDestRequest(BaseModel):
+    entries: list[DestEntry] = Field(..., min_length=1)
+
+
+def _github_append(entries: list[DestEntry], token: str) -> dict:
+    """GitHub Contents API로 항공편목적지.txt 수정 커밋."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    # 1) 현재 파일 가져오기
+    r = requests.get(GH_API, headers=headers, params={"ref": GH_BRANCH}, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    sha = data["sha"]
+    current = base64.b64decode(data["content"]).decode("utf-8")
+
+    # 2) 신규 라인 append
+    lines = current.rstrip("\n").split("\n")
+    for e in entries:
+        lines.append(f"{e.destination}\t{e.country}\t{e.region}")
+    new_content = "\n".join(lines) + "\n"
+
+    # 3) PUT 으로 커밋
+    body = {
+        "message": f"data: 신규 도착지 {len(entries)}개 추가",
+        "content": base64.b64encode(new_content.encode("utf-8")).decode("ascii"),
+        "sha": sha,
+        "branch": GH_BRANCH,
+    }
+    r2 = requests.put(GH_API, headers=headers, json=body, timeout=20)
+    r2.raise_for_status()
+    return r2.json()
+
+
+@app.post("/api/add-destinations")
+async def add_destinations(req: AddDestRequest):
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        raise HTTPException(
+            500,
+            "GITHUB_TOKEN 환경변수가 설정되지 않았습니다. "
+            "Render Dashboard → Environment 에서 추가하세요.",
+        )
+    try:
+        result = _github_append(req.entries, token)
+    except requests.HTTPError as e:
+        raise HTTPException(
+            502, f"GitHub API 오류 ({e.response.status_code}): {e.response.text[:200]}"
+        )
+    except Exception as e:
+        raise HTTPException(500, f"커밋 실패: {e}")
+
+    # 캐시 무효화 (다음 접속 시 최신 데이터 재로드)
+    _CACHE.clear()
+    commit_sha = (result.get("commit") or {}).get("sha", "")
+    return JSONResponse({"ok": True, "commit_sha": commit_sha, "count": len(req.entries)})
 
 
 @app.get("/healthz")
