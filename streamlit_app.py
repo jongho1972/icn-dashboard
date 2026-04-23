@@ -14,7 +14,7 @@ from aggregator import (agg_airline, agg_daily, agg_gate, agg_region, agg_total,
                         pct, prepare, rows_to_df)
 
 st.set_page_config(
-    page_title="인천공항 출발편 현황",
+    page_title="인천공항 국제선 출발편 현황",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -190,23 +190,23 @@ prev_label = f"{prev_month}월"
 curr_label = f"{curr_month}월"
 
 # ---------- 헤더 ----------
-hc1, hc2 = st.columns([3, 1])
+hc1, hc_badge, hc_btn = st.columns([5, 2, 2], vertical_alignment="bottom")
 with hc1:
-    st.markdown('<h1 class="page-title">인천공항 출발편 현황</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="page-title">인천공항 국제선 출발편 현황</h1>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="period-note">'
-        f'기간: <b>{prev_label}·{curr_label} 1~{max_day}일 동일기간</b> · '
-        f'Master(실제 운항)만 · 국제선'
+        f'기간: <b>{prev_label}·{curr_label} 1~{max_day}일 동일기간</b>'
         f'</div>',
         unsafe_allow_html=True,
     )
-with hc2:
+with hc_badge:
     st.markdown(
-        f'<div class="header-right">'
+        f'<div style="text-align:right;">'
         f'<span class="update-badge">업데이트 {datetime.now().strftime("%Y-%m-%d %H:%M")}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
+with hc_btn:
     if st.button("최신 데이터 가져오기", key="refresh", width="stretch"):
         st.cache_data.clear()
         st.rerun()
