@@ -91,11 +91,10 @@ h1.page-title {
 /* ===== 업데이트 배지 ===== */
 .update-badge {
   display: inline-flex; align-items: center;
-  background: #ffffff; color: var(--slate-700);
-  padding: 6px 12px; border-radius: 4px;
-  font-size: 13px; line-height: 1.5; font-weight: 500;
+  background: transparent; color: var(--slate-500);
+  padding: 0; font-size: 13px; line-height: 1.5; font-weight: 500;
   font-family: ui-monospace, "SF Mono", monospace;
-  border: 1px solid var(--slate-200); letter-spacing: 0;
+  border: none; letter-spacing: 0;
 }
 
 /* ===== 테이블 (Carbon style: 가로선 제거, 행 구분만) ===== */
@@ -303,7 +302,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
-render_table(df_total, total_row_idx=0)
+render_table(df_total)
 
 # ---------- 일자별 (전체 다음 위치) ----------
 st.markdown("### 일자별")
