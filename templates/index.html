@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>인천공항 국제선 출발편 현황</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.3.min.js" charset="utf-8"></script>
+  <style>
+    :root {
+      --navy-900: #0B2E5C;
+      --navy-700: #13407F;
+      --blue-500: #1F6FEB;
+      --blue-050: #DCE8F6;
+      --blue-025: #F4F7FB;
+      --orange-600: #C26420;
+      --orange-025: #FBF3EB;
+      --red-600: #B42318;
+      --slate-700: #334155;
+      --slate-500: #64748B;
+      --slate-400: #94A3B8;
+      --slate-200: #CBD5E1;
+      --slate-100: #E5EAF0;
+      --slate-050: #EEF2F6;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #ffffff; color: #111827;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard",
+                   "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      letter-spacing: -0.011em;
+    }
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 2.75rem 1.5rem 3rem;
+    }
+
+    /* 헤더 */
+    .header-row {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 16px;
+      flex-wrap: wrap;
+    }
+    h1.page-title {
+      font-weight: 800; color: var(--navy-900);
+      margin: 0; font-size: 1.875rem;
+      letter-spacing: -0.025em; line-height: 1.2;
+    }
+    .period-note {
+      color: var(--slate-500); font-size: 13px; line-height: 1.5;
+      margin-top: 8px; letter-spacing: -0.01em;
+    }
+    .update-badge {
+      color: var(--slate-500);
+      font-size: 13px; line-height: 1.5; font-weight: 500;
+      font-family: ui-monospace, "SF Mono", monospace;
+      letter-spacing: 0;
+    }
+
+    /* 섹션 헤더 */
+    h3 {
+      border-left: 4px solid var(--navy-900);
+      padding: 6px 0 6px 12px;
+      font-weight: 700; font-size: 1.3125rem;
+      color: var(--navy-900);
+      letter-spacing: -0.02em; line-height: 1.3;
+      margin: 2.25rem 0 0.75rem 0;
+    }
+
+    /* 요약 텍스트 */
+    .summary {
+      color: var(--navy-900); font-size: 17px; font-weight: 500;
+      margin: 1.25rem 0 12px 2px; line-height: 1.7;
+      letter-spacing: -0.01em;
+    }
+
+    /* 섹션 주석(게이트별 기준 등) */
+    .section-note {
+      color: var(--slate-500); font-size: 13px; line-height: 1.5;
+      margin: 4px 0 8px 2px; letter-spacing: -0.01em;
+    }
+
+    /* 테이블 */
+    table.icn {
+      border-collapse: collapse; width: 100%;
+      margin: 4px 0 0 0;
+      font-size: 13.5px; line-height: 1.45;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1, "ss01" 1;
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "Pretendard", "Noto Sans KR", sans-serif;
+      color: #111827; letter-spacing: -0.01em;
+      border-top: 1.5px solid var(--navy-900);
+      table-layout: fixed;
+    }
+    table.icn th, table.icn td {
+      border: none;
+      border-bottom: 1px solid var(--slate-050);
+      padding: 7px 18px 7px 8px;
+    }
+    table.icn thead th {
+      background: transparent; font-weight: 600; font-size: 12px;
+      color: var(--slate-500); text-align: right;
+      padding: 10px 18px 10px 8px; line-height: 1.35;
+      letter-spacing: 0.01em;
+      border-bottom: 1px solid var(--slate-200);
+    }
+    table.icn thead th[rowspan],
+    table.icn thead th.t1-group,
+    table.icn thead th.t2-group {
+      text-align: center; padding: 10px 12px;
+    }
+    table.icn thead th.t1-group { background: var(--blue-025); color: var(--navy-900); }
+    table.icn thead th.t2-group { background: var(--orange-025); color: var(--orange-600); }
+    table.icn colgroup col.col-label { width: 96px; }
+    table.icn td { text-align: right; }
+    table.icn td.label {
+      text-align: center;
+      background: transparent; color: var(--slate-700); font-weight: 500;
+      padding: 7px 12px;
+    }
+    table.icn td.pos { color: var(--blue-500); font-weight: 500; }
+    table.icn td.neg { color: var(--red-600); font-weight: 500; }
+    table.icn th.t1-last, table.icn td.t1-last {
+      border-right: 1px solid var(--slate-200);
+      padding-right: 18px;
+    }
+    table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 18px; }
+
+    /* 소계 행 */
+    table.icn tr.total-row td {
+      background: var(--blue-025); color: var(--navy-900); font-weight: 700;
+    }
+    table.icn tr.total-row td.label {
+      background: var(--blue-025); color: var(--navy-900); font-weight: 700;
+    }
+
+    /* Details (분류 기준·QA) */
+    details {
+      margin-top: 10px; font-size: 13px; color: var(--slate-500);
+    }
+    details summary {
+      cursor: pointer; padding: 6px 8px;
+      border: 1px solid var(--slate-100); border-radius: 4px;
+      display: inline-block; color: var(--slate-700);
+    }
+    details[open] summary { color: var(--navy-900); font-weight: 600; }
+    details .body {
+      padding: 10px 14px; font-size: 13px; line-height: 1.7;
+      color: var(--slate-700);
+    }
+
+    /* 차트 범례 */
+    .chart-legend {
+      display: flex; gap: 24px; font-size: 13px; color: var(--slate-700);
+      margin: 0 8px 10px 0; align-items: center; justify-content: flex-end;
+    }
+    .chart-legend .swatch { display: inline-flex; align-items: center; gap: 8px; }
+    .chart-legend b { color: #1a1a1a; }
+
+    /* 차트 컨테이너 */
+    .chart { width: 100%; height: 260px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header-row">
+      <h1 class="page-title">인천공항 국제선 출발편 현황</h1>
+      <span class="update-badge">데이터 조회 {{ fetched_at }} KST</span>
+    </div>
+    <div class="period-note">{{ period_note }}</div>
+
+    <div class="summary">{{ summary_html | safe }}</div>
+    {{ total_html | safe }}
+
+    <h3>일자별</h3>
+    <div class="chart-legend">
+      <span class="swatch">
+        <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2" stroke="#334155" stroke-width="2.5"/></svg>
+        <b>{{ curr_label }}</b>
+      </span>
+      <span class="swatch">
+        <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2" stroke="#334155" stroke-width="2.5" stroke-dasharray="5,4"/></svg>
+        <b>{{ prev_label }}</b>
+      </span>
+    </div>
+    <div id="chart_t1" class="chart"></div>
+    <div id="chart_t2" class="chart"></div>
+    {{ daily_html | safe }}
+
+    <h3>항공사별</h3>
+    {{ airline_html | safe }}
+
+    <h3>도착지별</h3>
+    {{ region_html | safe }}
+
+    <h3>게이트별</h3>
+    <div class="section-note">{{ gate_note }}</div>
+    {{ gate_html | safe }}
+    <details>
+      <summary>게이트 분류 기준</summary>
+      <div class="body">
+        <ul style="margin: 6px 0 0 18px; padding: 0;">
+          <li><b>동편</b>: 탑승구 1 ~ 25 또는 252 ~ 299</li>
+          <li><b>중앙</b>: 26 ~ 28 또는 250 ~ 251</li>
+          <li><b>서편</b>: 29 ~ 99 또는 200 ~ 249</li>
+          <li><b>탑승동</b>: 100 ~ 199</li>
+        </ul>
+      </div>
+    </details>
+
+    <details style="margin-top: 24px;">
+      <summary>데이터 출처 · QA</summary>
+      <div class="body">
+        <ul style="margin: 6px 0 0 18px; padding: 0;">
+          <li>출처: 한국공항공사 인천공항 실시간 출발 API</li>
+          <li>1시간 캐시 적용 — 새로고침해도 같은 결과. 캐시 만료 후 다음 접속 시 API 재호출.</li>
+          <li>매일 17:00 KST 자동 수집으로 Daily_Data 레포 갱신.</li>
+        </ul>
+      </div>
+    </details>
+
+  </div>
+
+  <script>
+    const chartData = {{ chart_data_json | safe }};
+    const redDays = new Set(chartData.red_days);
+    const days = [];
+    for (let i = 1; i <= chartData.max_day; i++) days.push(i);
+
+    const tickText = days.map(d => {
+      // 주말·공휴일은 붉은 HTML로 표기 (Plotly는 태그 해석 지원)
+      return redDays.has(d)
+        ? `<span style="color:#C00000;font-weight:bold;">${d}</span>`
+        : String(d);
+    });
+
+    const commonLayout = (title, color, yMin, yMax) => {
+      const shapes = [];
+      const annotations = [];
+      if (chartData.today_day) {
+        shapes.push({
+          type: "line",
+          x0: chartData.today_day, x1: chartData.today_day,
+          y0: yMin, y1: yMax,
+          line: { color: "#C00000", width: 1.25, dash: "dash" },
+          xref: "x", yref: "y",
+        });
+        annotations.push({
+          x: chartData.today_day, y: yMax,
+          text: "Today", showarrow: false,
+          font: { size: 11, color: "#C00000", weight: 700 },
+          xanchor: "left", yanchor: "top",
+          xshift: 4, yshift: -2,
+        });
+      }
+      return {
+        title: {
+          text: title, x: 0, xanchor: "left",
+          font: { size: 18, color: color, weight: 700 },
+          pad: { b: 4 },
+        },
+        xaxis: {
+          title: "", tickmode: "array", tickvals: days, ticktext: tickText,
+          tickfont: { size: 11, color: "#64748B" },
+          showline: true, linecolor: "#CBD5E1",
+          showgrid: false, zeroline: false,
+          range: [0.5, chartData.max_day + 0.5],
+        },
+        yaxis: {
+          title: "",
+          tickfont: { size: 11, color: "#64748B" },
+          showline: true, linecolor: "#CBD5E1",
+          showgrid: true, gridcolor: "#F1F5F9", griddash: "dot",
+          zeroline: false,
+          range: [yMin, yMax],
+        },
+        margin: { l: 50, r: 20, t: 40, b: 36 },
+        showlegend: false,
+        plot_bgcolor: "#fff", paper_bgcolor: "#fff",
+        shapes: shapes,
+        annotations: annotations,
+      };
+    };
+
+    const makeTraces = (prev, curr, color, currLabel, prevLabel) => ([
+      {
+        x: days, y: prev, mode: "lines", name: prevLabel,
+        line: { color: color, width: 2, dash: "dash" },
+        hovertemplate: `%{x}일 · ${prevLabel} · %{y:,}편<extra></extra>`,
+      },
+      {
+        x: days, y: curr, mode: "lines+markers", name: currLabel,
+        line: { color: color, width: 2 },
+        marker: { color: color, size: 5 },
+        hovertemplate: `%{x}일 · ${currLabel} · %{y:,}편<extra></extra>`,
+      },
+    ]);
+
+    // 공통 y범위
+    const all = [].concat(
+      chartData.series.T1_prev, chartData.series.T1_curr,
+      chartData.series.T2_prev, chartData.series.T2_curr
+    );
+    const yMin = Math.min(...all) - 10;
+    const yMax = Math.max(...all) + 10;
+
+    Plotly.newPlot("chart_t1",
+      makeTraces(chartData.series.T1_prev, chartData.series.T1_curr,
+                 "#1F6FEB", chartData.curr_label, chartData.prev_label),
+      commonLayout("T1", "#1F6FEB", yMin, yMax),
+      { displayModeBar: false, responsive: true });
+
+    Plotly.newPlot("chart_t2",
+      makeTraces(chartData.series.T2_prev, chartData.series.T2_curr,
+                 "#C26420", chartData.curr_label, chartData.prev_label),
+      commonLayout("T2", "#C26420", yMin, yMax),
+      { displayModeBar: false, responsive: true });
+  </script>
+</body>
+</html>
