@@ -200,6 +200,8 @@ async def index(request: Request):
     prev, curr, fetched_at = fetch_months(
         curr_year, curr_month, prev_year, prev_month, service_key
     )
+    dest_df = load_dest()
+    countries = sorted(dest_df["국가"].dropna().astype(str).str.strip().unique().tolist())
 
     if len(curr) == 0:
         return HTMLResponse(
@@ -298,6 +300,7 @@ async def index(request: Request):
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
+            "countries": countries,
             "export_default_start": date(prev_year, prev_month, 1).isoformat(),
             "export_default_end": _latest_available_date().isoformat(),
         },

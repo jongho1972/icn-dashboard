@@ -389,7 +389,14 @@
             {% for d in unmapped %}
             <tr>
               <td class="dest-cell">{{ d }}</td>
-              <td><input name="country_{{ loop.index0 }}" placeholder="예: 대만" required></td>
+              <td>
+                <select name="country_{{ loop.index0 }}" required>
+                  <option value="">선택</option>
+                  {% for c in countries %}
+                  <option value="{{ c }}">{{ c }}</option>
+                  {% endfor %}
+                </select>
+              </td>
               <td>
                 <select name="region_{{ loop.index0 }}" required>
                   <option value="">선택</option>
