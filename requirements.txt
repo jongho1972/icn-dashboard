@@ -6,5 +6,3 @@ pandas>=2.0
 numpy>=2.0
 requests>=2.31
 holidays>=0.50
-openpyxl>=3.1
-xlsxwriter>=3.2

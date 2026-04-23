@@ -338,8 +338,8 @@
   <div id="exportModal" class="modal-backdrop" onclick="if(event.target===this) closeExportModal()">
     <div class="modal" onclick="event.stopPropagation()">
       <button type="button" class="modal-close" onclick="closeExportModal()" aria-label="닫기">✕</button>
-      <h2>Raw 데이터 Excel 다운로드</h2>
-      <p>선택한 기간의 실제 운항 데이터(가공 포함)를 <code>.xlsx</code>로 내려받습니다. 최대 180일.</p>
+      <h2>Raw 데이터 CSV 다운로드</h2>
+      <p>선택한 기간의 실제 운항 데이터(가공 포함)를 <code>.csv</code> (UTF-8 BOM)로 내려받습니다. Excel에서 바로 열 수 있고 한글도 깨지지 않습니다. 최대 180일.</p>
       <form id="exportForm" onsubmit="doExport(event)">
         <table>
           <tr>
@@ -616,7 +616,7 @@
           const blob = await res.blob();
           const cd = res.headers.get("Content-Disposition") || "";
           const m = cd.match(/filename="?([^";]+)"?/);
-          const fname = m ? m[1] : `icn_flights_${start}_${end}.xlsx`;
+          const fname = m ? m[1] : `icn_flights_${start}_${end}.csv`;
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
           a.download = fname;
