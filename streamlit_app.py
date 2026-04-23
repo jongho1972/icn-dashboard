@@ -364,55 +364,49 @@ with tab1:
             red_days.append(_d)
     red_expr = f"indexof({red_days}, datum.value) >= 0 ? '#C00000' : '#334155'"
 
-    chart = (
-        alt.Chart(long)
-        .mark_line(strokeWidth=2.5, point=alt.OverlayMarkDef(size=25, filled=True))
-        .encode(
-            x=alt.X(
-                "일:Q", title="일자",
-                scale=alt.Scale(domain=[1, max_day], nice=False, padding=6),
-                axis=alt.Axis(
-                    values=list(range(1, max_day + 1)),
-                    tickMinStep=1, labelFontSize=11,
-                    labelColor={"expr": red_expr},
-                    labelFontWeight={"expr": f"indexof({red_days}, datum.value) >= 0 ? 'bold' : 'normal'"},
+    def _terminal_chart(terminal, color):
+        df_t = long[long["터미널"] == terminal]
+        return (
+            alt.Chart(df_t)
+            .mark_line(strokeWidth=2.5, point=alt.OverlayMarkDef(size=25, filled=True))
+            .encode(
+                x=alt.X(
+                    "일:Q", title="일자",
+                    scale=alt.Scale(domain=[1, max_day], nice=False, padding=6),
+                    axis=alt.Axis(
+                        values=list(range(1, max_day + 1)),
+                        tickMinStep=1, labelFontSize=11,
+                        labelColor={"expr": red_expr},
+                        labelFontWeight={"expr": f"indexof({red_days}, datum.value) >= 0 ? 'bold' : 'normal'"},
+                    ),
                 ),
-            ),
-            y=alt.Y("편수:Q", title="항공편수",
-                    scale=alt.Scale(zero=False, nice=True, padding=10),
-                    axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
-            color=alt.Color(
-                "터미널:N",
-                scale=alt.Scale(domain=["T1", "T2"], range=["#0070C0", "#E8833A"]),
-                legend=None,
-            ),
-            strokeDash=alt.StrokeDash(
-                "기간:N",
-                scale=alt.Scale(domain=[curr_label, prev_label], range=[[1, 0], [5, 4]]),
-                legend=None,
-            ),
-            tooltip=[
-                alt.Tooltip("일:Q", title="일자"),
-                alt.Tooltip("터미널:N"),
-                alt.Tooltip("기간:N"),
-                alt.Tooltip("편수:Q", title="편수", format=","),
-            ],
-        )
-        .properties(width="container", height=220)
-        .facet(
-            row=alt.Row(
-                "터미널:N",
-                title=None,
-                header=alt.Header(
-                    labelFontSize=15, labelFontWeight="bold",
-                    labelAnchor="start", labelPadding=6, labelColor="#1a1a1a",
-                    labelOrient="top", titleOrient="top",
+                y=alt.Y("편수:Q", title="항공편수",
+                        scale=alt.Scale(zero=False, nice=True, padding=10),
+                        axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
+                color=alt.value(color),
+                strokeDash=alt.StrokeDash(
+                    "기간:N",
+                    scale=alt.Scale(domain=[curr_label, prev_label], range=[[1, 0], [5, 4]]),
+                    legend=None,
                 ),
-            ),
+                tooltip=[
+                    alt.Tooltip("일:Q", title="일자"),
+                    alt.Tooltip("기간:N"),
+                    alt.Tooltip("편수:Q", title="편수", format=","),
+                ],
+            )
+            .properties(
+                width="container", height=240,
+                title=alt.Title(
+                    text=terminal, anchor="start",
+                    fontSize=15, fontWeight="bold", color="#1a1a1a",
+                    dx=4, offset=6,
+                ),
+            )
         )
-        .resolve_scale(y="independent")
-    )
-    st.altair_chart(chart, width="stretch")
+
+    st.altair_chart(_terminal_chart("T1", "#0070C0"), width="stretch")
+    st.altair_chart(_terminal_chart("T2", "#E8833A"), width="stretch")
 
 with tab2:
     render_table(df_daily)
