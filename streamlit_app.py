@@ -3,6 +3,9 @@ import math
 import os
 import sys
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+KST = ZoneInfo("Asia/Seoul")
 
 import altair as alt
 import pandas as pd
@@ -190,11 +193,13 @@ def load_dest():
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
-    """1시간 캐시. 모든 세션이 캐시 공유 → 새로고침 즉시 표시."""
+    """1시간 캐시. 모든 세션이 캐시 공유 → 새로고침 즉시 표시.
+    반환: (prev, curr, fetched_at_kst) — fetched_at 은 실제 API 호출 시각(KST)."""
     dest = load_dest()
     curr = build_current_month(DAILY_DIR, dest, service_key, curr_year, curr_month)
     prev = build_previous_month(FINAL_DIR, DAILY_DIR, dest, prev_year, prev_month)
-    return prev, curr
+    fetched_at = datetime.now(KST)
+    return prev, curr, fetched_at
 
 
 st.markdown(STYLE, unsafe_allow_html=True)
@@ -211,7 +216,9 @@ except (KeyError, FileNotFoundError):
     st.stop()
 
 with st.spinner("인천공항 API 호출 중... (최근 10일치 실시간 조회)"):
-    prev, curr = fetch_months(curr_year, curr_month, prev_year, prev_month, service_key)
+    prev, curr, fetched_at = fetch_months(
+        curr_year, curr_month, prev_year, prev_month, service_key
+    )
 
 if len(curr) == 0:
     st.error("이번달 데이터를 불러오지 못했습니다. API serviceKey와 Daily_Data 폴더를 확인하세요.")
@@ -229,7 +236,7 @@ curr_label = f"{curr_month}월"
 st.markdown(
     f'<div class="header-row">'
     f'<h1 class="page-title">인천공항 국제선 출발편 현황</h1>'
-    f'<span class="update-badge">업데이트 {datetime.now().strftime("%Y-%m-%d %H:%M")}</span>'
+    f'<span class="update-badge">데이터 조회 {fetched_at.strftime("%Y-%m-%d %H:%M")} KST</span>'
     f'</div>'
     f'<div class="period-note">기간 : {prev_label}/{curr_label} 1~{max_day}일 동일기간</div>',
     unsafe_allow_html=True,
