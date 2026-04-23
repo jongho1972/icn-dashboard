@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>인천공항 국제선 출발편 현황</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     :root {
       --navy-900: #0B2E5C;
@@ -57,6 +58,23 @@
       font-family: ui-monospace, "SF Mono", monospace;
       letter-spacing: 0;
     }
+
+    /* 이미지 복사 버튼 */
+    .header-actions { display: inline-flex; align-items: center; gap: 12px; }
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+      background: var(--navy-900); color: #fff;
+      border: none; cursor: pointer;
+      font-family: inherit; letter-spacing: -0.01em;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: var(--navy-700); }
+    .copy-btn:disabled { background: var(--slate-400); cursor: wait; }
+    /* 캡처 중 버튼/업데이트 배지 숨김 처리 */
+    body.capturing .copy-btn,
+    body.capturing .update-badge { visibility: hidden; }
 
     /* 섹션 헤더 */
     h3 {
@@ -178,7 +196,10 @@
 
     <div class="header-row">
       <h1 class="page-title">인천공항 국제선 출발편 현황</h1>
-      <span class="update-badge">데이터 조회 {{ fetched_at }} KST</span>
+      <div class="header-actions">
+        <span class="update-badge">데이터 조회 {{ fetched_at }} KST</span>
+        <button id="copy-btn" class="copy-btn" type="button">📋 이미지 복사</button>
+      </div>
     </div>
     <div class="period-note">{{ period_note }}</div>
 
@@ -326,6 +347,77 @@
                  "#C26420", chartData.curr_label, chartData.prev_label),
       commonLayout("T2", "#C26420", yMin, yMax),
       { displayModeBar: false, responsive: true });
+
+    // ===== 페이지 전체를 이미지로 캡처해서 클립보드 복사 =====
+    (function() {
+      const btn = document.getElementById("copy-btn");
+      if (!btn) return;
+
+      const setState = (text, disabled) => {
+        btn.textContent = text;
+        btn.disabled = !!disabled;
+      };
+
+      const download = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `icn_dashboard_${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      btn.addEventListener("click", async () => {
+        const orig = btn.textContent;
+        setState("⏳ 생성 중...", true);
+        document.body.classList.add("capturing");
+        try {
+          // Plotly 차트 렌더 안정화
+          await new Promise(r => setTimeout(r, 300));
+          const target = document.querySelector(".container");
+          const canvas = await html2canvas(target, {
+            backgroundColor: "#ffffff",
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: target.scrollWidth,
+            windowHeight: target.scrollHeight,
+          });
+          document.body.classList.remove("capturing");
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              setState("❌ 생성 실패", false);
+              setTimeout(() => setState(orig, false), 2000);
+              return;
+            }
+            // 1) 클립보드 복사 시도
+            if (navigator.clipboard && window.ClipboardItem) {
+              try {
+                await navigator.clipboard.write([
+                  new ClipboardItem({ "image/png": blob })
+                ]);
+                setState("✅ 복사 완료", true);
+                setTimeout(() => setState(orig, false), 2500);
+                return;
+              } catch (e) {
+                console.warn("clipboard.write failed, falling back to download:", e);
+              }
+            }
+            // 2) 클립보드 차단/비지원 → 파일 다운로드
+            download(blob);
+            setState("⬇️ 다운로드됨 (클립보드 차단)", true);
+            setTimeout(() => setState(orig, false), 3000);
+          }, "image/png");
+        } catch (err) {
+          console.error(err);
+          document.body.classList.remove("capturing");
+          setState("❌ 오류 (F12 로그 확인)", false);
+          setTimeout(() => setState(orig, false), 3000);
+        }
+      });
+    })();
   </script>
 </body>
 </html>
