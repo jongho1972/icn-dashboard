@@ -261,6 +261,40 @@
 
     /* 차트 컨테이너 */
     .chart { width: 100%; height: 260px; margin-top: 8px; }
+
+    /* 테이블 가로 스크롤 래퍼 */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 4px 0 0 0;
+    }
+    .table-wrap table.icn { margin: 0; }
+
+    /* 숫자·% 셀 줄바꿈 금지 */
+    table.icn td, table.icn th { white-space: nowrap; }
+
+    /* 모바일 (640px 이하) */
+    @media (max-width: 640px) {
+      .container { padding: 1.25rem 0.75rem 2rem; }
+      table.icn {
+        font-size: 11.5px;
+        min-width: 420px;
+      }
+      table.icn th, table.icn td {
+        padding: 6px 8px 6px 4px;
+      }
+      table.icn thead th {
+        padding: 8px 8px 8px 4px;
+        font-size: 11px;
+      }
+      table.icn colgroup col.col-label { width: 72px; }
+      table.icn td.label { padding: 6px 8px; }
+      table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 10px; }
+      /* 헤더 버튼 줄바꿈 허용 */
+      .header-row { flex-wrap: wrap; gap: 8px; }
+      .header-actions { flex-wrap: wrap; gap: 6px; }
+      .chart { height: 220px; }
+    }
   </style>
 </head>
 <body>

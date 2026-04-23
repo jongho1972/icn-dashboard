@@ -134,6 +134,7 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
 # ---------- HTML 테이블 렌더러 (Streamlit df_to_html 포팅) ----------
 def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx=None) -> str:
     parts = [
+        '<div class="table-wrap">',
         '<table class="icn">',
         '<colgroup>',
         '<col class="col-label"><col><col><col><col><col><col>',
@@ -175,7 +176,7 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
                     cls_attr = f' class="{t1last.strip()}"' if t1last else ""
                     parts.append(f"<td{cls_attr}>{v:,.0f}</td>")
         parts.append("</tr>")
-    parts.append("</tbody></table>")
+    parts.append("</tbody></table></div>")
     return "".join(parts)
 
 
