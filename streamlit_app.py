@@ -331,8 +331,6 @@ with tab1:
     chart_src["일"] = list(range(1, max_day + 1))
     long = pd.melt(chart_src, id_vars="일", var_name="시리즈", value_name="편수")
     long[["터미널", "기간"]] = long["시리즈"].str.split("|", expand=True)
-    long = long.sort_values(["터미널", "기간", "일"])
-    long["누적"] = long.groupby(["터미널", "기간"])["편수"].cumsum()
 
     chart = (
         alt.Chart(long)
@@ -340,9 +338,9 @@ with tab1:
         .encode(
             x=alt.X("일:Q", title="일자",
                     axis=alt.Axis(tickMinStep=1, labelFontSize=11)),
-            y=alt.Y("누적:Q", title="항공편수",
-                    scale=alt.Scale(zero=True, nice=True),
-                    axis=alt.Axis(labelFontSize=11, format=",d")),
+            y=alt.Y("편수:Q", title="항공편수",
+                    scale=alt.Scale(zero=False, nice=True, padding=10),
+                    axis=alt.Axis(labelFontSize=11, format=",d", tickCount=6)),
             color=alt.Color(
                 "터미널:N",
                 scale=alt.Scale(domain=["T1", "T2"], range=["#0070C0", "#E8833A"]),
@@ -357,7 +355,7 @@ with tab1:
                 alt.Tooltip("일:Q", title="일자"),
                 alt.Tooltip("터미널:N"),
                 alt.Tooltip("기간:N"),
-                alt.Tooltip("누적:Q", title="누적 편수", format=","),
+                alt.Tooltip("편수:Q", title="편수", format=","),
             ],
         )
         .properties(width=1180, height=220)
