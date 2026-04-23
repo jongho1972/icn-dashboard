@@ -207,7 +207,7 @@ prev_label = f"{prev_month}월"
 curr_label = f"{curr_month}월"
 
 # ---------- 헤더 ----------
-hc1, hc_badge = st.columns([5, 2], vertical_alignment="bottom")
+hc1, hc_badge = st.columns([5, 2], vertical_alignment="top")
 with hc1:
     st.markdown('<h1 class="page-title">인천공항 국제선 출발편 현황</h1>', unsafe_allow_html=True)
     st.markdown(
