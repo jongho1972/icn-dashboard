@@ -308,7 +308,6 @@ if True:
     st.markdown(
         f"""<div style="display:flex;gap:24px;font-size:13px;color:#475569;
                         margin:0 0 10px 8px;align-items:center;">
-          <span style="font-weight:600;color:#64748b;">기간</span>
           <span style="display:inline-flex;align-items:center;gap:8px;">
             <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2"
               stroke="#334155" stroke-width="2.5"/></svg>
@@ -345,7 +344,7 @@ if True:
         if _dt.weekday() >= 5 or _dt in _kr_hol:
             red_days.append(_d)
     weekend_color_expr = (
-        f"indexof({red_days}, datum.value) >= 0 ? '#94A3B8' : '#64748B'"
+        f"indexof({red_days}, datum.value) >= 0 ? '#C00000' : '#64748B'"
     )
     weekend_weight_expr = (
         f"indexof({red_days}, datum.value) >= 0 ? 'bold' : 'normal'"
@@ -366,7 +365,10 @@ if True:
                     tickMinStep=1, labelFontSize=11,
                     labelColor={"expr": weekend_color_expr},
                     labelFontWeight={"expr": weekend_weight_expr},
-                    domain=False, ticks=False, grid=False, labelPadding=6,
+                    labelOverlap=False, labelPadding=6,
+                    domain=True, domainColor="#CBD5E1",
+                    ticks=True, tickColor="#CBD5E1", tickSize=4,
+                    grid=False,
                 ),
             ),
             y=alt.Y(
@@ -375,7 +377,8 @@ if True:
                 axis=alt.Axis(
                     labelFontSize=11, format=",d", tickCount=6,
                     labelColor="#64748B",
-                    domain=False, ticks=False,
+                    domain=True, domainColor="#CBD5E1",
+                    ticks=True, tickColor="#CBD5E1", tickSize=4,
                     grid=True, gridColor="#F1F5F9", gridDash=[2, 3],
                 ),
             ),
