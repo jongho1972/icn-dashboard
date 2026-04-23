@@ -59,6 +59,11 @@ STYLE = """
 .block-container [data-testid="stVerticalBlock"] { gap: 1rem; }
 
 /* ===== 타이틀 ===== */
+.header-row {
+  display: flex; align-items: baseline;
+  justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+}
 h1.page-title {
   font-weight: 800; color: var(--navy-900);
   margin: 0; font-size: 1.875rem;
@@ -207,22 +212,14 @@ prev_label = f"{prev_month}월"
 curr_label = f"{curr_month}월"
 
 # ---------- 헤더 ----------
-hc1, hc_badge = st.columns([5, 2], vertical_alignment="top")
-with hc1:
-    st.markdown('<h1 class="page-title">인천공항 국제선 출발편 현황</h1>', unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="period-note">'
-        f'기간 : {prev_label}/{curr_label} 1~{max_day}일 동일기간'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-with hc_badge:
-    st.markdown(
-        f'<div style="text-align:right;">'
-        f'<span class="update-badge">업데이트 {datetime.now().strftime("%Y-%m-%d %H:%M")}</span>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
+st.markdown(
+    f'<div class="header-row">'
+    f'<h1 class="page-title">인천공항 국제선 출발편 현황</h1>'
+    f'<span class="update-badge">업데이트 {datetime.now().strftime("%Y-%m-%d %H:%M")}</span>'
+    f'</div>'
+    f'<div class="period-note">기간 : {prev_label}/{curr_label} 1~{max_day}일 동일기간</div>',
+    unsafe_allow_html=True,
+)
 
 # ---------- 요약 집계 ----------
 t1_p = len(prev_same[prev_same["터미널"] == "T1"])
@@ -295,18 +292,17 @@ def render_table(df, total_row_idx=None):
     st.markdown(df_to_html(df, prev_label, curr_label, total_row_idx), unsafe_allow_html=True)
 
 
-# ---------- 섹션들 ----------
-st.markdown("### 전체")
+# ---------- 전체 (섹션 헤더 없이 요약+표만) ----------
 st.markdown(
     f'<div style="color:#0B2E5C;font-size:17px;font-weight:500;'
-    f'margin:-2px 0 12px 2px;line-height:1.7;letter-spacing:-0.01em;">'
+    f'margin:1.25rem 0 12px 2px;line-height:1.7;letter-spacing:-0.01em;">'
     f'<b>월누적</b> {tot_c:,} 편{_trend(tot_c, tot_p)}'
     f'&nbsp;&nbsp;&middot;&nbsp;&nbsp;'
     f'<b>일평균</b> {avg_c:,.0f} 편'
     f'</div>',
     unsafe_allow_html=True,
 )
-df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
+df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
 # ---------- 일자별 (전체 다음 위치) ----------
