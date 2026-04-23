@@ -282,11 +282,10 @@ def render_table(df, total_row_idx=None):
 # ---------- 섹션들 ----------
 st.markdown("### 전체")
 st.markdown(
-    f'<div style="color:#334155;font-size:13.5px;margin:-4px 0 10px 2px;line-height:1.8;">'
-    f'<b>T1 합계</b> {t1_c:,}편{_trend(t1_c, t1_p)}'
-    f'&nbsp;&nbsp;·&nbsp;&nbsp;'
-    f'<b>T2 합계</b> {t2_c:,}편{_trend(t2_c, t2_p)}'
-    f'&nbsp;&nbsp;·&nbsp;&nbsp;'
+    f'<div style="color:#1a1a1a;font-size:17px;font-weight:500;'
+    f'margin:-2px 0 12px 2px;line-height:1.7;letter-spacing:-0.01em;">'
+    f'<b>합계</b> {tot_c:,}편{_trend(tot_c, tot_p)}'
+    f'&nbsp;&nbsp;&middot;&nbsp;&nbsp;'
     f'<b>일평균</b> {avg_c:,.0f}편{_trend(avg_c, avg_p)}'
     f'</div>',
     unsafe_allow_html=True,
