@@ -125,9 +125,9 @@ table.icn thead th.t2-group {
   background: var(--orange-025); color: var(--orange-600);
   border-bottom: 1px solid var(--slate-200);
 }
-table.icn td { text-align: right; }
+table.icn td { text-align: center; }
 table.icn td.label {
-  text-align: left; padding-left: 14px;
+  text-align: center;
   background: transparent; color: var(--slate-700); font-weight: 500;
 }
 table.icn td.pos { color: var(--blue-500); font-weight: 500; }
@@ -310,11 +310,11 @@ df_total = rows_to_df(agg_total(prev_same, curr), prev_label, curr_label)
 render_table(df_total, total_row_idx=0)
 
 # ---------- 일자별 (전체 다음 위치) ----------
-st.markdown(f"### 일자별 (1~{max_day}일)")
+st.markdown("### 일자별")
 df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_label)
 
-tab1, tab2 = st.tabs(["추이 차트", "상세 테이블"])
-with tab1:
+# 추이 차트
+if True:
     st.markdown(
         f"""<div style="display:flex;gap:24px;font-size:13px;color:#475569;
                         margin:0 0 10px 8px;align-items:center;">
@@ -431,8 +431,8 @@ with tab1:
     st.altair_chart(_terminal_chart("T1", "#1F6FEB"), width="stretch")
     st.altair_chart(_terminal_chart("T2", "#C26420"), width="stretch")
 
-with tab2:
-    render_table(df_daily)
+# 상세 테이블 (차트 바로 아래)
+render_table(df_daily)
 
 # ---------- 항공사별 ----------
 st.markdown("### 항공사별")
