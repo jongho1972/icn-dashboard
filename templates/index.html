@@ -106,8 +106,16 @@
     .modal {
       background: #fff; border-radius: 8px; width: 100%; max-width: 720px;
       box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-      padding: 24px 28px;
+      padding: 24px 28px; position: relative;
     }
+    .modal-close {
+      position: absolute; top: 12px; right: 12px;
+      background: transparent; border: none;
+      font-size: 18px; color: var(--slate-500);
+      cursor: pointer; padding: 4px 10px; border-radius: 4px;
+      line-height: 1;
+    }
+    .modal-close:hover { background: var(--slate-050); color: var(--navy-900); }
     .modal h2 { margin: 0 0 8px 0; font-size: 18px; color: var(--navy-900); }
     .modal p { color: var(--slate-500); font-size: 13px; margin: 0 0 16px 0; }
     .modal table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -329,6 +337,7 @@
 
   <div id="exportModal" class="modal-backdrop" onclick="if(event.target===this) closeExportModal()">
     <div class="modal" onclick="event.stopPropagation()">
+      <button type="button" class="modal-close" onclick="closeExportModal()" aria-label="닫기">✕</button>
       <h2>Raw 데이터 Excel 다운로드</h2>
       <p>선택한 기간의 실제 운항 데이터(가공 포함)를 <code>.xlsx</code>로 내려받습니다. 최대 180일.</p>
       <form id="exportForm" onsubmit="doExport(event)">
@@ -364,6 +373,7 @@
   {% if unmapped %}
   <div id="addModal" class="modal-backdrop" onclick="if(event.target===this) closeAddModal()">
     <div class="modal" onclick="event.stopPropagation()">
+      <button type="button" class="modal-close" onclick="closeAddModal()" aria-label="닫기">✕</button>
       <h2>신규 도착지 매핑 추가</h2>
       <p>아래 도착지에 <b>국가</b>와 <b>지역</b>을 입력하고 저장하면 GitHub 레포 <code>항공편목적지.txt</code>에 커밋됩니다. Render가 감지해 재배포 후 반영됩니다.</p>
       <form id="addForm" onsubmit="submitAdd(event)">
