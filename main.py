@@ -132,7 +132,7 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
 
 
 # ---------- HTML 테이블 렌더러 (Streamlit df_to_html 포팅) ----------
-def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx=None) -> str:
+def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx=None, future_after: int | None = None) -> str:
     parts = [
         '<div class="table-wrap">',
         '<table class="icn">',
@@ -153,7 +153,18 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
     pct_idx = {3, 6}
     t1_last_idx = 3
     for ri, (_, row) in enumerate(df.iterrows()):
-        tr_cls = ' class="total-row"' if total_row_idx is not None and ri == total_row_idx else ""
+        classes = []
+        if total_row_idx is not None and ri == total_row_idx:
+            classes.append("total-row")
+        if future_after is not None:
+            label = str(row.get("구분", ""))
+            if label.endswith("일"):
+                try:
+                    if int(label[:-1]) > future_after:
+                        classes.append("future-row")
+                except ValueError:
+                    pass
+        tr_cls = f' class="{" ".join(classes)}"' if classes else ""
         parts.append(f"<tr{tr_cls}>")
         for ci, c in enumerate(cols):
             v = row[c]
@@ -207,6 +218,97 @@ def _red_days(year: int, month: int, max_day: int) -> list[int]:
         if dt.weekday() >= 5 or dt in kr_hol:
             reds.append(d)
     return reds
+
+
+WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
+
+
+def _kr_holidays(year):
+    try:
+        import holidays as _h
+        return _h.KR(years=year)
+    except Exception:
+        return {}
+
+
+def _prev_dow_avg(prev_t, prev_year, prev_month):
+    """전월 터미널별 일자 카운트 → 요일별 평균."""
+    cnt = prev_t.groupby("DD").size().to_dict()
+    groups: dict[int, list[int]] = {}
+    for d, c in cnt.items():
+        wd = date(prev_year, prev_month, int(d)).weekday()
+        groups.setdefault(wd, []).append(int(c))
+    return {wd: sum(v) / len(v) for wd, v in groups.items()}
+
+
+def _ratio_td(curr_cnt: int, avg: float | None, extra_cls: str = "") -> str:
+    base = (extra_cls + " ").strip()
+    if not avg or avg <= 0:
+        return f'<td class="{base}"></td>' if base else '<td></td>'
+    r = (curr_cnt - avg) / avg
+    if r > 0:
+        return f'<td class="{(base + " pos").strip()}">+{r:.1%}</td>'
+    if r < 0:
+        return f'<td class="{(base + " neg").strip()}">−{abs(r):.1%}</td>'
+    return f'<td class="{base}">{r:+.1%}</td>' if base else f'<td>{r:+.1%}</td>'
+
+
+def daily_combined_html(curr, prev, curr_label: str,
+                        curr_year: int, curr_month: int,
+                        prev_year: int, prev_month: int,
+                        max_day: int, today_day: int | None) -> str:
+    """T1·T2 통합 일별 표: 날짜·요일 공유, 터미널별 [편수, 전월동요일비]."""
+    curr_t1 = curr[curr["터미널"] == "T1"]
+    curr_t2 = curr[curr["터미널"] == "T2"]
+    prev_t1 = prev[prev["터미널"] == "T1"]
+    prev_t2 = prev[prev["터미널"] == "T2"]
+
+    avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month)
+    avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month)
+
+    curr_hol = _kr_holidays(curr_year)
+
+    parts = [
+        '<div class="table-wrap">',
+        '<table class="icn daily-t">',
+        '<colgroup><col><col><col><col><col><col></colgroup>',
+        '<thead>',
+        '<tr>',
+        '<th rowspan="2">날짜</th>',
+        '<th rowspan="2">요일</th>',
+        '<th colspan="2" class="t1-group t1-last">T1</th>',
+        '<th colspan="2" class="t2-group">T2</th>',
+        '</tr>',
+        '<tr>',
+        f'<th>{curr_label}</th><th class="t1-last">전월동요일비</th>',
+        f'<th>{curr_label}</th><th>전월동요일비</th>',
+        '</tr>',
+        '</thead><tbody>',
+    ]
+    for d in range(1, max_day + 1):
+        dt = date(curr_year, curr_month, d)
+        wd = dt.weekday()
+        is_red = (wd >= 5) or (dt in curr_hol)
+        c1 = int((curr_t1["DD"] == d).sum())
+        c2 = int((curr_t2["DD"] == d).sum())
+
+        cls_list = []
+        if today_day is not None and d > today_day:
+            cls_list.append("future-row")
+        tr_cls = f' class="{" ".join(cls_list)}"' if cls_list else ""
+        date_cls = ' class="label red-day"' if is_red else ' class="label"'
+        wd_cls = ' class="dow red-day"' if is_red else ' class="dow"'
+
+        parts.append(f"<tr{tr_cls}>")
+        parts.append(f'<td{date_cls}>{d}일</td>')
+        parts.append(f'<td{wd_cls}>{WEEKDAY_KR[wd]}</td>')
+        parts.append(f'<td>{c1:,}</td>')
+        parts.append(_ratio_td(c1, avg_t1.get(wd), extra_cls="t1-last"))
+        parts.append(f'<td>{c2:,}</td>')
+        parts.append(_ratio_td(c2, avg_t2.get(wd)))
+        parts.append("</tr>")
+    parts.append("</tbody></table></div>")
+    return "".join(parts)
 
 
 # ---------- 메인 라우트 ----------
@@ -292,7 +394,14 @@ async def index(request: Request):
 
     # 일자별 표
     df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_label)
-    daily_html = df_to_html(df_daily, prev_label, curr_label)
+    today_day_for_daily = (
+        today.day if (today.year == curr_year and today.month == curr_month) else None
+    )
+    daily_html = daily_combined_html(
+        curr, prev_same, curr_label,
+        curr_year, curr_month, prev_year, prev_month,
+        max_day, today_day_for_daily,
+    )
 
     # 일자별 차트용 데이터
     chart_data = {

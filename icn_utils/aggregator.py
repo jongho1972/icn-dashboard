@@ -27,22 +27,23 @@ def gate_group(g):
         n = int(g)
     except (ValueError, TypeError):
         return None
-    # 중앙: 26~28 또는 250~251
-    if 26 <= n <= 28 or 250 <= n <= 251: return "중앙"
-    # 동편: 1~25 또는 252~299
-    if 1 <= n <= 25 or 252 <= n <= 299: return "동편"
+    # 중앙: 25~28
+    if 25 <= n <= 28: return "중앙"
+    # 동편: 1~24 또는 251~299
+    if 1 <= n <= 24 or 251 <= n <= 299: return "동편"
     # 탑승동: 100~199
     if 100 <= n <= 199: return "탑승동"
-    # 서편: 29~99 또는 200~249
-    if 29 <= n <= 99 or 200 <= n <= 249: return "서편"
+    # 서편: 29~99 또는 200~250
+    if 29 <= n <= 99 or 200 <= n <= 250: return "서편"
     return None
 
 
 def prepare(df):
-    """집계 전 보조 컬럼 추가 + Master + 국제선 필터."""
+    """집계 전 보조 컬럼 추가 + Master + 국제선 + 결항/회항 제외 필터."""
     df = df.copy()
     df["항공사"] = df["항공사"].fillna("")
     df = df[(df["CODESHARE"] == "Master") & (df["지역"] != "국내선")]
+    df = df[~df["remark"].isin(["결항", "회항"])]
     df["항공사그룹"] = df["항공사"].apply(airline_group)
     df["게이트그룹"] = df["탑승구"].apply(gate_group)
     # 소규모 지역(중동·대양주)을 '기타'로 통합

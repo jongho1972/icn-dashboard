@@ -226,6 +226,32 @@
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
 
+    /* 오늘 이후 (예정/미확정 일자) 하이라이트 */
+    table.icn tr.future-row td {
+      background: #FFF8E1; color: #78350F;
+    }
+    table.icn tr.future-row td.label {
+      background: #FFF8E1; color: #78350F; font-weight: 600;
+    }
+
+    /* 일자별 통합 표 (T1·T2 그룹) */
+    table.icn.daily-t {
+      width: auto; table-layout: fixed;
+    }
+    table.icn.daily-t th, table.icn.daily-t td { padding: 6px 10px; }
+    table.icn.daily-t colgroup col:nth-child(1) { width: 56px; }  /* 날짜 */
+    table.icn.daily-t colgroup col:nth-child(2) { width: 40px; }  /* 요일 */
+    table.icn.daily-t colgroup col:nth-child(3) { width: 64px; }  /* T1 편수 */
+    table.icn.daily-t colgroup col:nth-child(4) { width: 92px; }  /* T1 비율 */
+    table.icn.daily-t colgroup col:nth-child(5) { width: 64px; }  /* T2 편수 */
+    table.icn.daily-t colgroup col:nth-child(6) { width: 92px; }  /* T2 비율 */
+    table.icn.daily-t td.dow { color: var(--slate-500); font-weight: 500; text-align: center; }
+    table.icn.daily-t td.red-day { color: #C00000; }
+    table.icn.daily-t thead tr:first-child th[rowspan] { text-align: center; }
+    @media (max-width: 640px) {
+      table.icn.daily-t { width: 100%; }
+    }
+
     /* 각주 (페이지 하단) — 세로 스택 */
     footer.footnote {
       margin-top: 48px;
@@ -344,6 +370,7 @@
     </div>
     <div id="chart_t1" class="chart"></div>
     <div id="chart_t2" class="chart"></div>
+
     {{ daily_html | safe }}
 
     <h3>항공사별</h3>
@@ -360,18 +387,26 @@
       <div class="footnote-block">
         <div class="footnote-title">탑승구 분류 기준</div>
         <ul>
-          <li><b>동편</b>: 탑승구 1 ~ 25 또는 252 ~ 299</li>
-          <li><b>중앙</b>: 26 ~ 28 또는 250 ~ 251</li>
-          <li><b>서편</b>: 29 ~ 99 또는 200 ~ 249</li>
+          <li><b>동편</b>: 탑승구 1 ~ 24 또는 251 ~ 299</li>
+          <li><b>중앙</b>: 25 ~ 28</li>
+          <li><b>서편</b>: 29 ~ 99 또는 200 ~ 250</li>
           <li><b>탑승동</b>: 100 ~ 199</li>
         </ul>
       </div>
       <div class="footnote-block">
-        <div>
-          <b>데이터 출처</b> : 인천국제공항공사_여객기 운항 현황 상세 조회 서비스
-          (<a href="https://www.data.go.kr/data/15112968/openapi.do#/"
-              target="_blank" rel="noopener">https://www.data.go.kr/data/15112968/openapi.do#/</a>)
-        </div>
+        <div class="footnote-title">집계 제외 기준</div>
+        <ul>
+          <li>공동운항(코드쉐어), 국내선, 결항/회항</li>
+        </ul>
+      </div>
+      <div class="footnote-block">
+        <div class="footnote-title">데이터 출처</div>
+        <ul>
+          <li>인천국제공항공사_여객기 운항 현황 상세 조회 서비스
+            (<a href="https://www.data.go.kr/data/15112968/openapi.do#/"
+                target="_blank" rel="noopener">https://www.data.go.kr/data/15112968/openapi.do#/</a>)
+          </li>
+        </ul>
       </div>
     </footer>
 
@@ -482,7 +517,7 @@
         : String(d);
     });
 
-    const commonLayout = (title, color, yMin, yMax) => {
+    const commonLayout = (title, color, yMin, yMax, prevAvg) => {
       const shapes = [];
       const annotations = [];
       if (chartData.today_day) {
@@ -499,6 +534,24 @@
           font: { size: 11, color: "#C00000", weight: 700 },
           xanchor: "left", yanchor: "top",
           xshift: 4, yshift: -2,
+        });
+      }
+      if (prevAvg != null && isFinite(prevAvg)) {
+        shapes.push({
+          type: "line",
+          x0: 0.5, x1: chartData.max_day + 0.5,
+          y0: prevAvg, y1: prevAvg,
+          line: { color: "#94A3B8", width: 1.2, dash: "5px,4px" },
+          xref: "x", yref: "y",
+        });
+        annotations.push({
+          x: 1, y: prevAvg,
+          text: `${chartData.prev_label} 평균 ${Math.round(prevAvg).toLocaleString()}편`,
+          showarrow: false,
+          font: { size: 10, color: "#64748B", weight: 600 },
+          xanchor: "left", yanchor: "bottom",
+          xshift: 0, yshift: 2,
+          bgcolor: "rgba(255,255,255,0.85)",
         });
       }
       return {
@@ -553,16 +606,20 @@
     const yMin = Math.min(...all) - 10;
     const yMax = Math.max(...all) + 10;
 
+    const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+    const t1PrevAvg = avg(chartData.series.T1_prev);
+    const t2PrevAvg = avg(chartData.series.T2_prev);
+
     Plotly.newPlot("chart_t1",
       makeTraces(chartData.series.T1_prev, chartData.series.T1_curr,
                  "#1F6FEB", chartData.curr_label, chartData.prev_label),
-      commonLayout("T1", "#1F6FEB", yMin, yMax),
+      commonLayout("T1", "#1F6FEB", yMin, yMax, t1PrevAvg),
       { displayModeBar: false, responsive: true });
 
     Plotly.newPlot("chart_t2",
       makeTraces(chartData.series.T2_prev, chartData.series.T2_curr,
                  "#C26420", chartData.curr_label, chartData.prev_label),
-      commonLayout("T2", "#C26420", yMin, yMax),
+      commonLayout("T2", "#C26420", yMin, yMax, t2PrevAvg),
       { displayModeBar: false, responsive: true });
 
     // ===== 페이지 전체를 이미지로 캡처해서 클립보드 복사 =====
