@@ -622,7 +622,7 @@ async def export_raw(start: str, end: str):
         "YYYYMMDD", "YYYY", "MM", "DD", "출발시각", "출발분",
         "터미널",
         "운항편명", "항공사", "항공사 구분",
-        "목적지", "국가", "지역", "도착지 구분",
+        "목적지", "국가", "도착지 구분",
         "체크인 카운터", "탑승구", "게이트 구분",
         "CODESHARE", "Master_Flight",
         "remark", "scheduleDateTime", "estimatedDateTime", "Flight_Key",

@@ -180,7 +180,7 @@
       font-feature-settings: "tnum" 1, "ss01" 1;
       font-family: -apple-system, BlinkMacSystemFont,
                    "Pretendard", "Noto Sans KR", sans-serif;
-      color: #111827; letter-spacing: -0.01em;
+      color: #0A0F1E; letter-spacing: -0.01em;
       border-top: 1.5px solid var(--navy-900);
       table-layout: fixed;
     }
@@ -188,6 +188,7 @@
       border: none;
       border-bottom: 1px solid var(--slate-050);
       padding: 7px 18px 7px 8px;
+      font-weight: 500;
     }
     table.icn thead th {
       background: transparent; font-weight: 600; font-size: 12px;
@@ -652,7 +653,7 @@
           });
           document.body.classList.remove("capturing");
 
-          const TARGET_WIDTH = 1000;
+          const TARGET_WIDTH = 1072;
           // 계단식 다운샘플링: 절반씩 줄이며 앨리어싱 최소화
           let current = srcCanvas;
           while (current.width > TARGET_WIDTH * 2) {
