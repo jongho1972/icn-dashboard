@@ -242,11 +242,11 @@ def _ratio_td(curr_cnt: int, avg: float | None, extra_cls: str = "") -> str:
     return f'<td class="{base}">{r:+.1%}</td>' if base else f'<td>{r:+.1%}</td>'
 
 
-def daily_combined_html(curr, prev, curr_label: str,
+def daily_combined_html(curr, prev, curr_label: str, prev_label: str,
                         curr_year: int, curr_month: int,
                         prev_year: int, prev_month: int,
                         max_day: int, today_day: int | None) -> str:
-    """T1·T2 통합 일별 표: 날짜·요일 공유, 터미널별 [편수, 전월동요일비]."""
+    """T1·T2 통합 일별 표: 날짜·요일 공유, 터미널별 [전월·이번달·전월동요일비]."""
     curr_t1 = curr[curr["터미널"] == "T1"]
     curr_t2 = curr[curr["터미널"] == "T2"]
     prev_t1 = prev[prev["터미널"] == "T1"]
@@ -254,23 +254,25 @@ def daily_combined_html(curr, prev, curr_label: str,
 
     avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month)
     avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month)
+    prev_t1_cnt = prev_t1.groupby("DD").size().to_dict()
+    prev_t2_cnt = prev_t2.groupby("DD").size().to_dict()
 
     curr_hol = _kr_holidays(curr_year)
 
     parts = [
         '<div class="table-wrap">',
         '<table class="icn daily-t">',
-        '<colgroup><col><col><col><col><col><col></colgroup>',
+        '<colgroup><col><col><col><col><col><col><col><col></colgroup>',
         '<thead>',
         '<tr>',
         '<th rowspan="2">날짜</th>',
         '<th rowspan="2">요일</th>',
-        '<th colspan="2" class="t1-group t1-last">T1</th>',
-        '<th colspan="2" class="t2-group">T2</th>',
+        '<th colspan="3" class="t1-group t1-last">T1</th>',
+        '<th colspan="3" class="t2-group">T2</th>',
         '</tr>',
         '<tr>',
-        f'<th>{curr_label}</th><th class="t1-last">전월동요일비</th>',
-        f'<th>{curr_label}</th><th>전월동요일비</th>',
+        f'<th>{prev_label}</th><th>{curr_label}</th><th class="t1-last">전월동요일비</th>',
+        f'<th>{prev_label}</th><th>{curr_label}</th><th>전월동요일비</th>',
         '</tr>',
         '</thead><tbody>',
     ]
@@ -280,6 +282,8 @@ def daily_combined_html(curr, prev, curr_label: str,
         is_red = (wd >= 5) or (dt in curr_hol)
         c1 = int((curr_t1["DD"] == d).sum())
         c2 = int((curr_t2["DD"] == d).sum())
+        p1 = int(prev_t1_cnt.get(d, 0))
+        p2 = int(prev_t2_cnt.get(d, 0))
 
         cls_list = []
         if today_day is not None and d >= today_day:
@@ -291,8 +295,10 @@ def daily_combined_html(curr, prev, curr_label: str,
         parts.append(f"<tr{tr_cls}>")
         parts.append(f'<td{date_cls}>{d}일</td>')
         parts.append(f'<td{wd_cls}>{WEEKDAY_KR[wd]}</td>')
+        parts.append(f'<td class="prev-val">{p1:,}</td>' if p1 else '<td class="prev-val"></td>')
         parts.append(f'<td>{c1:,}</td>')
         parts.append(_ratio_td(c1, avg_t1.get(wd), extra_cls="t1-last"))
+        parts.append(f'<td class="prev-val">{p2:,}</td>' if p2 else '<td class="prev-val"></td>')
         parts.append(f'<td>{c2:,}</td>')
         parts.append(_ratio_td(c2, avg_t2.get(wd)))
         parts.append("</tr>")
@@ -387,7 +393,7 @@ async def index(request: Request):
         today.day if (today.year == curr_year and today.month == curr_month) else None
     )
     daily_html = daily_combined_html(
-        curr, prev_same, curr_label,
+        curr, prev_same, curr_label, prev_label,
         curr_year, curr_month, prev_year, prev_month,
         max_day, today_day_for_daily,
     )
