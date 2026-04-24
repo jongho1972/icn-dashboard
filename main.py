@@ -194,6 +194,21 @@ def _trend_html(c, p) -> str:
             f'(전월비 {sign}{abs(r):.1%})</span>')
 
 
+def _dow_diff_html(curr_cnt: int, avg: float | None) -> str:
+    """D+1일 T1/T2 요약용: '전월 동요일 평균 대비 +xx편(+xx.x%)' span."""
+    if not avg or avg <= 0:
+        return ""
+    diff = curr_cnt - avg
+    r = diff / avg
+    color = "#1F6FEB" if diff > 0 else ("#B42318" if diff < 0 else "#64748B")
+    sign_n = "+" if diff > 0 else ("−" if diff < 0 else "±")
+    sign_p = "+" if r > 0 else ("−" if r < 0 else "±")
+    return (f', 전월 동요일 평균 대비 '
+            f'<span style="color:{color};font-weight:500;'
+            f'font-variant-numeric:tabular-nums;">'
+            f'{sign_n}{abs(diff):.0f}편({sign_p}{abs(r):.0%})</span>')
+
+
 # ---------- 주말·공휴일 계산 ----------
 def _red_days(year: int, month: int, max_day: int) -> list[int]:
     try:
@@ -286,7 +301,7 @@ def daily_combined_html(curr, prev, curr_label: str, prev_label: str,
         p2 = int(prev_t2_cnt.get(d, 0))
 
         cls_list = []
-        if today_day is not None and d >= today_day:
+        if today_day is not None and d > today_day:
             cls_list.append("future-row")
         tr_cls = f' class="{" ".join(cls_list)}"' if cls_list else ""
         date_cls = ' class="label red-day"' if is_red else ' class="label"'
@@ -357,10 +372,29 @@ async def index(request: Request):
     avg_p, avg_c = tot_p / max_day, tot_c / max_day
 
     summary_html = (
-        f'<b>월누적</b> {tot_c:,} 편{_trend_html(tot_c, tot_p)}'
+        f'<b>T1+T2 기준</b> {tot_c:,} 편{_trend_html(tot_c, tot_p)}'
         f'&nbsp;&nbsp;·&nbsp;&nbsp;'
         f'<b>일평균</b> {avg_c:,.0f} 편'
     )
+
+    # D+1일 요약 (내일 예정 편수 + 전월 동요일 평균 대비)
+    tomorrow = today + timedelta(days=1)
+    tomorrow_summary_html = None
+    if (tomorrow.year == curr_year and tomorrow.month == curr_month
+            and tomorrow.day <= max_day):
+        tmr_dd = tomorrow.day
+        tmr_wd = tomorrow.weekday()
+        prev_t1 = prev_same[prev_same["터미널"] == "T1"]
+        prev_t2 = prev_same[prev_same["터미널"] == "T2"]
+        avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month).get(tmr_wd)
+        avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month).get(tmr_wd)
+        t1_tmr = int(((curr["터미널"] == "T1") & (curr["DD"] == tmr_dd)).sum())
+        t2_tmr = int(((curr["터미널"] == "T2") & (curr["DD"] == tmr_dd)).sum())
+        tomorrow_summary_html = (
+            f'<b>{curr_month}/{tmr_dd}({WEEKDAY_KR[tmr_wd]}) 항공편수</b><br>'
+            f'• <b>T1</b> : {t1_tmr:,}편{_dow_diff_html(t1_tmr, avg_t1)}<br>'
+            f'• <b>T2</b> : {t2_tmr:,}편{_dow_diff_html(t2_tmr, avg_t2)}'
+        )
 
     # 각 섹션 표
     df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
@@ -429,6 +463,7 @@ async def index(request: Request):
             "gate_html": gate_html,
             "gate_note": gate_note,
             "daily_html": daily_html,
+            "tomorrow_summary_html": tomorrow_summary_html,
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
@@ -617,21 +652,25 @@ async def export_raw(start: str, end: str):
     df["도착지 구분"] = df["지역"].replace(REGION_MERGE)
     df["게이트 구분"] = df["탑승구"].apply(gate_group)
 
-    # 정렬 · 컬럼 정리 (엑셀에 무리 없는 순서)
+    # 출발시간 (HH:MM) — 출발시각·출발분 결합
+    df["출발시간"] = (
+        df["출발시각"].astype(int).map("{:02d}".format)
+        + ":" + df["출발분"].astype(int).map("{:02d}".format)
+    )
+
+    # Raw_Data_Format.txt 순서
     cols = [
-        "YYYYMMDD", "YYYY", "MM", "DD", "출발시각", "출발분",
-        "터미널",
-        "운항편명", "항공사", "항공사 구분",
-        "목적지", "국가", "도착지 구분",
-        "체크인 카운터", "탑승구", "게이트 구분",
-        "CODESHARE", "Master_Flight",
-        "remark", "scheduleDateTime", "estimatedDateTime", "Flight_Key",
+        "YYYYMMDD", "출발시간", "목적지", "항공사", "운항편명",
+        "터미널", "체크인 카운터", "탑승구",
+        "remark", "CODESHARE",
+        "항공사 구분", "국가", "도착지 구분", "게이트 구분",
+        "Master_Flight", "scheduleDateTime", "estimatedDateTime", "Flight_Key",
     ]
     df = df[[c for c in cols if c in df.columns]]
     df["YYYYMMDD"] = df["YYYYMMDD"].dt.strftime("%Y-%m-%d")
     for dt_col in ("scheduleDateTime", "estimatedDateTime"):
         if dt_col in df.columns:
-            df[dt_col] = df[dt_col].dt.strftime("%Y-%m-%d %H:%M")
+            df[dt_col] = df[dt_col].dt.strftime("%Y-%m-%d %-H:%M")
 
     # CSV (UTF-8 BOM) — Excel로 열어도 한글 깨지지 않음, 매우 빠름
     buf = BytesIO()

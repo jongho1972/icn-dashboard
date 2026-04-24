@@ -345,10 +345,12 @@
     </div>
     {% endif %}
 
-    <div class="summary">{{ summary_html | safe }}</div>
-    {{ total_html | safe }}
-
     <h3>일자별</h3>
+
+    {% if tomorrow_summary_html %}
+    <div class="summary" style="margin-bottom: 1.75rem;">{{ tomorrow_summary_html | safe }}</div>
+    {% endif %}
+
     <div class="chart-legend">
       <span class="swatch">
         <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2" stroke="#334155" stroke-width="2.5"/></svg>
@@ -363,6 +365,10 @@
     <div id="chart_t2" class="chart" style="margin-bottom: 28px;"></div>
 
     {{ daily_html | safe }}
+
+    <h3>월누적</h3>
+    <div class="summary">{{ summary_html | safe }}</div>
+    {{ total_html | safe }}
 
     <h3>항공사별</h3>
     {{ airline_html | safe }}
@@ -536,13 +542,16 @@
           xref: "x", yref: "y",
         });
         annotations.push({
-          x: 1, y: prevAvg,
-          text: `${chartData.prev_label} 평균 ${Math.round(prevAvg).toLocaleString()}편`,
+          x: 0, xref: "paper",
+          y: prevAvg, yref: "y",
+          text: `전월 평균 ${Math.round(prevAvg).toLocaleString()}`,
           showarrow: false,
-          font: { size: 10, color: "#64748B", weight: 600 },
-          xanchor: "left", yanchor: "bottom",
-          xshift: 0, yshift: 2,
-          bgcolor: "rgba(255,255,255,0.85)",
+          font: { size: 9, color: "#64748B", weight: 600 },
+          xanchor: "right", yanchor: "middle",
+          xshift: -6,
+          align: "right",
+          bgcolor: "rgba(255,255,255,0.95)",
+          borderpad: 2,
         });
       }
       return {
@@ -566,7 +575,7 @@
           zeroline: false,
           range: [yMin, yMax],
         },
-        margin: { l: 50, r: 20, t: 40, b: 36 },
+        margin: { l: 82, r: 20, t: 40, b: 36 },
         showlegend: false,
         plot_bgcolor: "#fff", paper_bgcolor: "#fff",
         shapes: shapes,
