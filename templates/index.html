@@ -232,7 +232,6 @@
     table.icn.daily-t colgroup col:nth-child(2) { width: 40px; }  /* 요일 */
     table.icn.daily-t td.dow { color: var(--slate-500); font-weight: 500; text-align: center; }
     table.icn.daily-t td.red-day { color: #C00000; }
-    table.icn.daily-t td.prev-val { color: var(--slate-500); }
     table.icn.daily-t thead tr:first-child th[rowspan] { text-align: center; }
 
     /* 오늘 ~ 월말 (예정/미확정 일자) 하이라이트 */
@@ -516,13 +515,13 @@
           type: "line",
           x0: chartData.today_day, x1: chartData.today_day,
           y0: yMin, y1: yMax,
-          line: { color: "#C00000", width: 1.25, dash: "dash" },
+          line: { color: "#94A3B8", width: 1.2, dash: "5px,4px" },
           xref: "x", yref: "y",
         });
         annotations.push({
           x: chartData.today_day, y: yMax,
           text: "Today", showarrow: false,
-          font: { size: 11, color: "#C00000", weight: 700 },
+          font: { size: 10, color: "#64748B", weight: 600 },
           xanchor: "left", yanchor: "top",
           xshift: 4, yshift: -2,
         });
@@ -642,9 +641,10 @@
           // Plotly 차트 렌더 안정화
           await new Promise(r => setTimeout(r, 300));
           const target = document.querySelector(".container");
+          // 3배 스케일 캡처 → 1000px로 계단식 다운샘플링 (단일 단계보다 훨씬 선명)
           const srcCanvas = await html2canvas(target, {
             backgroundColor: "#ffffff",
-            scale: 2,
+            scale: 3,
             useCORS: true,
             logging: false,
             windowWidth: target.scrollWidth,
@@ -652,16 +652,27 @@
           });
           document.body.classList.remove("capturing");
 
-          // 1000px 너비로 리사이즈 (비율 유지)
           const TARGET_WIDTH = 1000;
-          const ratio = TARGET_WIDTH / srcCanvas.width;
+          // 계단식 다운샘플링: 절반씩 줄이며 앨리어싱 최소화
+          let current = srcCanvas;
+          while (current.width > TARGET_WIDTH * 2) {
+            const next = document.createElement("canvas");
+            next.width = Math.round(current.width / 2);
+            next.height = Math.round(current.height / 2);
+            const nctx = next.getContext("2d");
+            nctx.imageSmoothingEnabled = true;
+            nctx.imageSmoothingQuality = "high";
+            nctx.drawImage(current, 0, 0, next.width, next.height);
+            current = next;
+          }
+          // 마지막 단계: 목표 크기로 조정
           const canvas = document.createElement("canvas");
           canvas.width = TARGET_WIDTH;
-          canvas.height = Math.round(srcCanvas.height * ratio);
+          canvas.height = Math.round(current.height * (TARGET_WIDTH / current.width));
           const ctx = canvas.getContext("2d");
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(srcCanvas, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(current, 0, 0, canvas.width, canvas.height);
 
           canvas.toBlob(async (blob) => {
             if (!blob) {
