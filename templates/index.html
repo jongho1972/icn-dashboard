@@ -148,6 +148,34 @@
     .modal-btn.primary:hover { background: var(--navy-700); }
     .modal-btn.primary:disabled { background: var(--slate-400); cursor: wait; }
 
+    /* 진행 상태바 */
+    .progress-wrap {
+      margin-top: 14px; display: none;
+    }
+    .progress-wrap.active { display: block; }
+    .progress-track {
+      width: 100%; height: 6px; background: var(--slate-100);
+      border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--navy-900);
+      width: 0%; transition: width 0.15s ease-out;
+    }
+    .progress-fill.indeterminate {
+      width: 35%;
+      background: linear-gradient(90deg, transparent, var(--navy-900), transparent);
+      animation: progress-slide 1.1s ease-in-out infinite;
+    }
+    @keyframes progress-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(300%); }
+    }
+    .progress-label {
+      margin-top: 6px;
+      font-size: 12px; color: var(--slate-500);
+      font-variant-numeric: tabular-nums;
+    }
+
     /* 섹션 헤더 */
     h3 {
       border-left: 4px solid var(--navy-900);
@@ -437,6 +465,10 @@
             </td>
           </tr>
         </table>
+        <div id="exportProgress" class="progress-wrap">
+          <div class="progress-track"><div id="exportProgressFill" class="progress-fill"></div></div>
+          <div id="exportProgressLabel" class="progress-label">준비 중...</div>
+        </div>
         <div class="modal-actions">
           <div id="exportResult" class="result"></div>
           <button type="button" class="modal-btn cancel" onclick="closeExportModal()">취소</button>
@@ -746,41 +778,72 @@
       const start = form.start.value.replaceAll("-", "");
       const end = form.end.value.replaceAll("-", "");
       if (!start || !end) return;
+      const el = document.getElementById("exportResult");
       if (start > end) {
-        const el = document.getElementById("exportResult");
         el.textContent = "종료일이 시작일보다 빠릅니다.";
         el.className = "result err";
         return;
       }
       const btn = document.getElementById("exportSubmit");
+      const progress = document.getElementById("exportProgress");
+      const fill = document.getElementById("exportProgressFill");
+      const pLabel = document.getElementById("exportProgressLabel");
+      const fmtKB = n => (n / 1024).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       btn.disabled = true; btn.textContent = "생성 중...";
-      const el = document.getElementById("exportResult");
-      el.textContent = "CSV 파일 생성 중...";
-      el.className = "result";
+      el.textContent = ""; el.className = "result";
+      progress.classList.add("active");
+      fill.classList.add("indeterminate");
+      fill.style.width = "";
+      pLabel.textContent = "서버에서 CSV 생성 중...";
       try {
         const url = `/api/export-raw?start=${start}&end=${end}`;
         const res = await fetch(url);
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
           try { const j = await res.json(); msg = j.detail || JSON.stringify(j); } catch {}
+          progress.classList.remove("active");
           el.textContent = "❌ " + msg;
           el.className = "result err";
-        } else {
-          const blob = await res.blob();
-          const cd = res.headers.get("Content-Disposition") || "";
-          const m = cd.match(/filename="?([^";]+)"?/);
-          const fname = m ? m[1] : `icn_flights_${start}_${end}.csv`;
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = fname;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(a.href);
-          el.textContent = `✅ 다운로드 완료 (${fname})`;
-          el.className = "result ok";
+          return;
         }
+        const total = parseInt(res.headers.get("Content-Length") || "0", 10);
+        fill.classList.remove("indeterminate");
+        const reader = res.body.getReader();
+        const chunks = [];
+        let received = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (total > 0) {
+            const pct = Math.min(100, Math.round(received * 100 / total));
+            fill.style.width = pct + "%";
+            pLabel.textContent = `${pct}% · ${fmtKB(received)} / ${fmtKB(total)} KB`;
+          } else {
+            pLabel.textContent = `${fmtKB(received)} KB 수신 중...`;
+          }
+        }
+        fill.style.width = "100%";
+        const blob = new Blob(chunks, { type: "text/csv" });
+        const cd = res.headers.get("Content-Disposition") || "";
+        const m = cd.match(/filename="?([^";]+)"?/);
+        const fname = m ? m[1] : `icn_flights_${start}_${end}.csv`;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        pLabel.textContent = `✅ 다운로드 완료 (${fname})`;
+        setTimeout(() => {
+          closeExportModal();
+          progress.classList.remove("active");
+          fill.style.width = "0%";
+        }, 900);
       } catch (e) {
+        progress.classList.remove("active");
         el.textContent = "❌ " + (e.message || "실패");
         el.className = "result err";
       } finally {

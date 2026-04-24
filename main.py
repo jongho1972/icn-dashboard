@@ -653,9 +653,12 @@ async def export_raw(start: str, end: str):
     df["게이트 구분"] = df["탑승구"].apply(gate_group)
 
     # 출발시간 (HH:MM) — 출발시각·출발분 결합
+    # Excel이 시간 타입으로 자동 변환하지 않도록 ="HH:MM" 수식 형태로 저장
     df["출발시간"] = (
-        df["출발시각"].astype(int).map("{:02d}".format)
+        '="'
+        + df["출발시각"].astype(int).map("{:02d}".format)
         + ":" + df["출발분"].astype(int).map("{:02d}".format)
+        + '"'
     )
 
     # Raw_Data_Format.txt 순서
@@ -675,6 +678,7 @@ async def export_raw(start: str, end: str):
     # CSV (UTF-8 BOM) — Excel로 열어도 한글 깨지지 않음, 매우 빠름
     buf = BytesIO()
     df.to_csv(buf, index=False, encoding="utf-8-sig")
+    size = buf.tell()
     buf.seek(0)
 
     fname = f"icn_flights_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.csv"
@@ -683,6 +687,7 @@ async def export_raw(start: str, end: str):
         media_type="text/csv; charset=utf-8-sig",
         headers={
             "Content-Disposition": f'attachment; filename="{fname}"',
+            "Content-Length": str(size),
             "Cache-Control": "no-store",
         },
     )
