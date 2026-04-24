@@ -242,85 +242,61 @@ def _ratio_td(curr_cnt: int, avg: float | None, extra_cls: str = "") -> str:
     return f'<td class="{base}">{r:+.1%}</td>' if base else f'<td>{r:+.1%}</td>'
 
 
-def daily_transposed_html(curr, prev, curr_label: str,
-                          curr_year: int, curr_month: int,
-                          prev_year: int, prev_month: int,
-                          max_day: int, today_day: int | None) -> str:
-    """전치형 일별 표: 일자가 컬럼, 메트릭이 행."""
+def daily_combined_html(curr, prev, curr_label: str,
+                        curr_year: int, curr_month: int,
+                        prev_year: int, prev_month: int,
+                        max_day: int, today_day: int | None) -> str:
+    """T1·T2 통합 일별 표: 날짜·요일 공유, 터미널별 [편수, 전월동요일비]."""
     curr_t1 = curr[curr["터미널"] == "T1"]
     curr_t2 = curr[curr["터미널"] == "T2"]
-    avg_t1 = _prev_dow_avg(prev[prev["터미널"] == "T1"], prev_year, prev_month)
-    avg_t2 = _prev_dow_avg(prev[prev["터미널"] == "T2"], prev_year, prev_month)
+    prev_t1 = prev[prev["터미널"] == "T1"]
+    prev_t2 = prev[prev["터미널"] == "T2"]
+
+    avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month)
+    avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month)
+
     curr_hol = _kr_holidays(curr_year)
 
-    days = list(range(1, max_day + 1))
-    weekdays = [date(curr_year, curr_month, d).weekday() for d in days]
-    is_red = [(wd >= 5) or (date(curr_year, curr_month, d) in curr_hol)
-              for d, wd in zip(days, weekdays)]
-    is_future = [today_day is not None and d >= today_day for d in days]
-
-    def day_cls(i: int) -> str:
-        cs = []
-        if is_future[i]: cs.append("future-col")
-        return f' class="{" ".join(cs)}"' if cs else ""
-
-    def red_cls(i: int, base: str = "") -> str:
-        cs = [base] if base else []
-        if is_red[i]: cs.append("red-day")
-        if is_future[i]: cs.append("future-col")
-        return f' class="{" ".join(cs)}"' if cs else ""
-
-    def num_cell(v: int, i: int) -> str:
-        return f'<td{day_cls(i)}>{v:,}</td>'
-
-    def ratio_cell(c: int, avg, i: int) -> str:
-        extra = "future-col" if is_future[i] else ""
-        return _ratio_td(c, avg, extra_cls=extra)
-
     parts = [
-        '<h4 class="daily-tx-title">전월 동일요일 대비</h4>',
         '<div class="table-wrap">',
-        '<table class="icn daily-tx">',
-        '<thead><tr>',
-        '<th class="row-label">일자</th>',
+        '<table class="icn daily-t">',
+        '<colgroup><col><col><col><col><col><col></colgroup>',
+        '<thead>',
+        '<tr>',
+        '<th rowspan="2">날짜</th>',
+        '<th rowspan="2">요일</th>',
+        '<th colspan="2" class="t1-group t1-last">T1</th>',
+        '<th colspan="2" class="t2-group">T2</th>',
+        '</tr>',
+        '<tr>',
+        f'<th>{curr_label}</th><th class="t1-last">전월동요일비</th>',
+        f'<th>{curr_label}</th><th>전월동요일비</th>',
+        '</tr>',
+        '</thead><tbody>',
     ]
-    for i, d in enumerate(days):
-        parts.append(f'<th{red_cls(i)}>{d}</th>')
-    parts.append('</tr></thead><tbody>')
+    for d in range(1, max_day + 1):
+        dt = date(curr_year, curr_month, d)
+        wd = dt.weekday()
+        is_red = (wd >= 5) or (dt in curr_hol)
+        c1 = int((curr_t1["DD"] == d).sum())
+        c2 = int((curr_t2["DD"] == d).sum())
 
-    # 요일 행
-    parts.append('<tr><td class="row-label">요일</td>')
-    for i, wd in enumerate(weekdays):
-        parts.append(f'<td{red_cls(i, "dow")}>{WEEKDAY_KR[wd]}</td>')
-    parts.append('</tr>')
+        cls_list = []
+        if today_day is not None and d >= today_day:
+            cls_list.append("future-row")
+        tr_cls = f' class="{" ".join(cls_list)}"' if cls_list else ""
+        date_cls = ' class="label red-day"' if is_red else ' class="label"'
+        wd_cls = ' class="dow red-day"' if is_red else ' class="dow"'
 
-    # T1: 편수 + 전월동요일비 (그룹 라벨 rowspan=2)
-    parts.append('<tr class="t1-row group-top">')
-    parts.append('<td class="row-label group-label t1-label" rowspan="2">T1</td>')
-    for i, d in enumerate(days):
-        parts.append(num_cell(int((curr_t1["DD"] == d).sum()), i))
-    parts.append('</tr>')
-
-    parts.append('<tr class="t1-ratio">')
-    for i, d in enumerate(days):
-        c = int((curr_t1["DD"] == d).sum())
-        parts.append(ratio_cell(c, avg_t1.get(weekdays[i]), i))
-    parts.append('</tr>')
-
-    # T2: 편수 + 전월동요일비
-    parts.append('<tr class="t2-row group-top">')
-    parts.append('<td class="row-label group-label t2-label" rowspan="2">T2</td>')
-    for i, d in enumerate(days):
-        parts.append(num_cell(int((curr_t2["DD"] == d).sum()), i))
-    parts.append('</tr>')
-
-    parts.append('<tr class="t2-ratio">')
-    for i, d in enumerate(days):
-        c = int((curr_t2["DD"] == d).sum())
-        parts.append(ratio_cell(c, avg_t2.get(weekdays[i]), i))
-    parts.append('</tr>')
-
-    parts.append('</tbody></table></div>')
+        parts.append(f"<tr{tr_cls}>")
+        parts.append(f'<td{date_cls}>{d}일</td>')
+        parts.append(f'<td{wd_cls}>{WEEKDAY_KR[wd]}</td>')
+        parts.append(f'<td>{c1:,}</td>')
+        parts.append(_ratio_td(c1, avg_t1.get(wd), extra_cls="t1-last"))
+        parts.append(f'<td>{c2:,}</td>')
+        parts.append(_ratio_td(c2, avg_t2.get(wd)))
+        parts.append("</tr>")
+    parts.append("</tbody></table></div>")
     return "".join(parts)
 
 
@@ -410,7 +386,7 @@ async def index(request: Request):
     today_day_for_daily = (
         today.day if (today.year == curr_year and today.month == curr_month) else None
     )
-    daily_html = daily_transposed_html(
+    daily_html = daily_combined_html(
         curr, prev_same, curr_label,
         curr_year, curr_month, prev_year, prev_month,
         max_day, today_day_for_daily,

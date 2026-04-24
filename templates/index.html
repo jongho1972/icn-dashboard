@@ -226,40 +226,21 @@
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
 
-    /* 일자별 전치형 표 — 일자가 컬럼 */
-    h4.daily-tx-title {
-      font-size: 14px; font-weight: 700; margin: 16px 0 6px;
-      color: var(--navy-900); letter-spacing: -0.01em;
+    /* 일자별 통합 표 (T1·T2 그룹) — 전체 폭 100%, 날짜·요일만 좁게 고정 */
+    table.icn.daily-t { width: 100%; table-layout: fixed; }
+    table.icn.daily-t colgroup col:nth-child(1) { width: 56px; }  /* 날짜 */
+    table.icn.daily-t colgroup col:nth-child(2) { width: 40px; }  /* 요일 */
+    table.icn.daily-t td.dow { color: var(--slate-500); font-weight: 500; text-align: center; }
+    table.icn.daily-t td.red-day { color: #C00000; }
+    table.icn.daily-t thead tr:first-child th[rowspan] { text-align: center; }
+
+    /* 오늘 ~ 월말 (예정/미확정 일자) 하이라이트 */
+    table.icn tr.future-row td {
+      background: #FFF8E1; color: #78350F;
     }
-    table.icn.daily-tx { width: 100%; table-layout: fixed; }
-    table.icn.daily-tx th, table.icn.daily-tx td {
-      padding: 5px 2px; text-align: center; font-size: 10.5px;
+    table.icn tr.future-row td.label {
+      background: #FFF8E1; color: #78350F; font-weight: 600;
     }
-    table.icn.daily-tx td.row-label, table.icn.daily-tx th.row-label,
-    table.icn.daily-tx td.group-label { font-size: 10.5px; }
-    table.icn.daily-tx td.row-label, table.icn.daily-tx th.row-label {
-      text-align: left; font-weight: 600; color: var(--navy-900);
-      background: #F8FAFC; padding-left: 10px;
-      white-space: nowrap;
-    }
-    table.icn.daily-tx td.group-label {
-      text-align: center; padding-left: 4px; font-weight: 700;
-      width: 36px; vertical-align: middle;
-      border-right: 1px solid var(--slate-100);
-    }
-    table.icn.daily-tx td.t1-label { color: #1F6FEB; background: var(--blue-025); }
-    table.icn.daily-tx td.t2-label { color: #C26420; background: #FFF1E6; }
-    table.icn.daily-tx td.metric-label { width: 96px; font-weight: 500; color: var(--slate-700); }
-    table.icn.daily-tx td.dow { color: var(--slate-500); }
-    table.icn.daily-tx .red-day { color: #C00000; font-weight: 600; }
-    table.icn.daily-tx .future-col { background: #FFF8E1; }
-    table.icn.daily-tx tr.t1-row td:not(.row-label) { color: #1F6FEB; font-weight: 500; }
-    table.icn.daily-tx tr.t2-row td:not(.row-label) { color: #C26420; font-weight: 500; }
-    table.icn.daily-tx tr.group-top td { border-top: 2px solid var(--slate-100); }
-    table.icn.daily-tx td.pos { color: var(--blue-500); font-size: 9.5px; }
-    table.icn.daily-tx td.neg { color: var(--red-600); font-size: 9.5px; }
-    table.icn.daily-tx tr.t1-ratio td:not(.row-label):not(.group-label),
-    table.icn.daily-tx tr.t2-ratio td:not(.row-label):not(.group-label) { font-size: 9.5px; }
 
     /* 각주 (페이지 하단) — 세로 스택 */
     footer.footnote {
@@ -378,7 +359,7 @@
       </span>
     </div>
     <div id="chart_t1" class="chart"></div>
-    <div id="chart_t2" class="chart"></div>
+    <div id="chart_t2" class="chart" style="margin-bottom: 28px;"></div>
 
     {{ daily_html | safe }}
 
