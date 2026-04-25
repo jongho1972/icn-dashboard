@@ -180,7 +180,8 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
                 parts.append(f'<td class="label">{v}</td>')
             elif ci in pct_idx:
                 if pd.isna(v):
-                    parts.append(f'<td class="{t1last.strip()}"></td>')
+                    cls = ("dash " + t1last.strip()).strip()
+                    parts.append(f'<td class="{cls}">—</td>')
                 elif v > 0:
                     parts.append(f'<td class="pos{t1last}">+{v:.1%}</td>')
                 elif v < 0:
@@ -189,7 +190,8 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
                     parts.append(f'<td class="{t1last.strip()}">{v:+.1%}</td>')
             else:
                 if pd.isna(v) or v == 0:
-                    parts.append(f'<td class="{t1last.strip()}"></td>')
+                    cls = ("dash " + t1last.strip()).strip()
+                    parts.append(f'<td class="{cls}">—</td>')
                 else:
                     cls_attr = f' class="{t1last.strip()}"' if t1last else ""
                     parts.append(f"<td{cls_attr}>{v:,.0f}</td>")

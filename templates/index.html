@@ -246,6 +246,7 @@
     }
     table.icn td.pos { color: var(--blue-500); font-weight: 500; }
     table.icn td.neg { color: var(--red-600); font-weight: 500; }
+    table.icn td.dash { color: var(--slate-400); font-weight: 400; }
     table.icn th.t1-last, table.icn td.t1-last {
       border-right: 1px solid var(--slate-200);
       padding-right: 18px;
@@ -300,6 +301,15 @@
       word-break: keep-all; white-space: nowrap;
     }
     footer.footnote a:hover { color: var(--navy-900); text-decoration-color: var(--navy-900); }
+    footer.footnote .credit {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--slate-100);
+      color: var(--slate-400);
+      font-size: 11px;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
 
     /* 차트 범례 */
     .chart-legend {
@@ -438,6 +448,7 @@
           <li><b>탑승동</b>: 100 ~ 199</li>
         </ul>
       </div>
+      <div class="credit">신라면세점 인천공항점(마케팅) · 작업·배포</div>
     </footer>
 
   </div>
@@ -537,17 +548,18 @@
     for (let i = 1; i <= chartData.max_day; i++) days.push(i);
 
     // 모바일에서는 5일 간격 + Today + 말일만 tick 표시 (겹침 방지)
-    const isMobile = window.matchMedia("(max-width: 640px)").matches;
-    const tickDays = isMobile
-      ? Array.from(new Set([1, 5, 10, 15, 20, 25, chartData.max_day, chartData.today_day].filter(d => d && d >= 1 && d <= chartData.max_day))).sort((a, b) => a - b)
-      : days;
-
-    const tickText = tickDays.map(d => {
-      // 주말·공휴일은 붉은 HTML로 표기 (Plotly는 태그 해석 지원)
-      return redDays.has(d)
-        ? `<span style="color:#C00000;font-weight:bold;">${d}</span>`
-        : String(d);
-    });
+    function computeTicks() {
+      const isMobile = window.matchMedia("(max-width: 640px)").matches;
+      const td = isMobile
+        ? Array.from(new Set([1, 5, 10, 15, 20, 25, chartData.max_day, chartData.today_day].filter(d => d && d >= 1 && d <= chartData.max_day))).sort((a, b) => a - b)
+        : days;
+      const tt = td.map(d =>
+        redDays.has(d)
+          ? `<span style="color:#C00000;font-weight:bold;">${d}</span>`
+          : String(d));
+      return { tickDays: td, tickText: tt };
+    }
+    let { tickDays, tickText } = computeTicks();
 
     const commonLayout = (title, color, yMin, yMax, prevAvg) => {
       const shapes = [];
@@ -615,6 +627,8 @@
         plot_bgcolor: "#fff", paper_bgcolor: "#fff",
         shapes: shapes,
         annotations: annotations,
+        hovermode: "x unified",
+        hoverlabel: { bgcolor: "#fff", bordercolor: "#CBD5E1", font: { size: 12, color: "#0B2E5C" } },
       };
     };
 
@@ -623,13 +637,13 @@
         x: days, y: prev, mode: "lines", name: prevLabel,
         line: { color: color, width: 1.4, dash: "3px,3px" },
         opacity: 0.75,
-        hovertemplate: `${prevLabel} %{x}일 · %{y:,}편<extra></extra>`,
+        hovertemplate: "%{y:,}편<extra></extra>",
       },
       {
         x: days, y: curr, mode: "lines+markers", name: currLabel,
         line: { color: color, width: 2.2 },
         marker: { color: color, size: 6 },
-        hovertemplate: `${currLabel} %{x}일 · %{y:,}편<extra></extra>`,
+        hovertemplate: "%{y:,}편<extra></extra>",
       },
     ]);
 
@@ -656,6 +670,18 @@
                  "#C26420", chartData.curr_label, chartData.prev_label),
       commonLayout("T2", "#C26420", yMin, yMax, t2PrevAvg),
       { displayModeBar: false, responsive: true });
+
+    // 리사이즈 시 모바일/데스크톱 전환에 맞춰 X축 tick 재계산
+    let _chartResizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(_chartResizeTimer);
+      _chartResizeTimer = setTimeout(() => {
+        const t = computeTicks();
+        const update = { "xaxis.tickvals": t.tickDays, "xaxis.ticktext": t.tickText };
+        if (document.getElementById("chart_t1")) Plotly.relayout("chart_t1", update);
+        if (document.getElementById("chart_t2")) Plotly.relayout("chart_t2", update);
+      }, 150);
+    });
 
     // ===== 페이지 전체를 이미지로 캡처해서 클립보드 복사 =====
     (function() {
@@ -796,6 +822,12 @@
     function closeExportModal() {
       document.getElementById("exportModal").classList.remove("open");
     }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const m = document.getElementById("exportModal");
+        if (m && m.classList.contains("open")) closeExportModal();
+      }
+    });
     async function doExport(ev) {
       ev.preventDefault();
       const form = ev.target;
