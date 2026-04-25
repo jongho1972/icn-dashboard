@@ -131,6 +131,24 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
     return result
 
 
+@app.on_event("startup")
+def warm_cache_on_startup() -> None:
+    """앱 기동 직후 이번달/지난달 데이터를 미리 캐시에 올려둔다.
+    실패해도 부팅을 막지 않는다 (요청 시 재시도)."""
+    service_key = os.environ.get("INCHEON_API_KEY", "")
+    if not service_key:
+        return
+    try:
+        today = date.today()
+        curr_year, curr_month = today.year, today.month
+        prev_year, prev_month = (
+            (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
+        )
+        fetch_months(curr_year, curr_month, prev_year, prev_month, service_key)
+    except Exception as exc:
+        print(f"[warm_cache_on_startup] skipped: {exc!r}")
+
+
 # ---------- HTML 테이블 렌더러 (Streamlit df_to_html 포팅) ----------
 def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx=None) -> str:
     parts = [
