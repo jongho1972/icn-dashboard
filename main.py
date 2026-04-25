@@ -74,18 +74,18 @@ def load_dest():
 def _latest_available_date() -> date:
     """Daily_Data 내 가장 최근 일자의 pkl 파일에서 날짜 추출."""
     if not DAILY_DIR.is_dir():
-        return date.today()
+        return datetime.now(KST).date()
     pkls = sorted(
         f.name for f in DAILY_DIR.iterdir()
         if f.name.startswith("flight_schedule_") and f.suffix == ".pkl"
     )
     if not pkls:
-        return date.today()
+        return datetime.now(KST).date()
     ymd = pkls[-1][len("flight_schedule_"):-len(".pkl")]
     try:
         return datetime.strptime(ymd, "%Y%m%d").date()
     except ValueError:
-        return date.today()
+        return datetime.now(KST).date()
 
 
 def _earliest_available_date() -> date:
@@ -112,7 +112,7 @@ def _earliest_available_date() -> date:
                 return datetime.strptime(ymd, "%Y%m%d").date()
             except ValueError:
                 pass
-    return date.today()
+    return datetime.now(KST).date()
 
 
 def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
@@ -139,7 +139,7 @@ def warm_cache_on_startup() -> None:
     if not service_key:
         return
     try:
-        today = date.today()
+        today = datetime.now(KST).date()
         curr_year, curr_month = today.year, today.month
         prev_year, prev_month = (
             (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
@@ -349,7 +349,7 @@ async def index(request: Request):
             status_code=500,
         )
 
-    today = date.today()
+    today = datetime.now(KST).date()
     curr_year, curr_month = today.year, today.month
     prev_year, prev_month = (
         (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)

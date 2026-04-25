@@ -6,7 +6,10 @@
 """
 import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+KST = ZoneInfo("Asia/Seoul")
 
 import pandas as pd
 import requests
@@ -24,7 +27,7 @@ def main():
     daily_dir = os.path.join(base, "Daily_Data")
     os.makedirs(daily_dir, exist_ok=True)
 
-    start = date.today() - timedelta(days=3)
+    start = datetime.now(KST).date() - timedelta(days=3)
     dates = pd.date_range(start, periods=10).strftime("%Y%m%d").tolist()
     print(f"수집 대상: {dates[0]} ~ {dates[-1]}")
 
