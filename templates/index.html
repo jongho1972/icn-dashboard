@@ -4,11 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>인천공항 국제선 출발편 현황</title>
-  <script src="https://cdn.plot.ly/plotly-2.35.3.min.js" charset="utf-8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js"></script>
+  <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <style>
     :root {
       --navy-900: #0B2E5C;
@@ -541,7 +538,44 @@
   </div>
   {% endif %}
 
+  <script src="https://cdn.plot.ly/plotly-basic-2.35.3.min.js" charset="utf-8"></script>
   <script>
+    // ===== Lazy loaders (CDN 자원은 사용 시점에 로드) =====
+    let _h2cLoading = null;
+    function loadHtml2Canvas() {
+      if (window.html2canvas) return Promise.resolve();
+      if (_h2cLoading) return _h2cLoading;
+      _h2cLoading = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      return _h2cLoading;
+    }
+    let _fpLoading = null;
+    function loadFlatpickr() {
+      if (window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns.ko) return Promise.resolve();
+      if (_fpLoading) return _fpLoading;
+      _fpLoading = new Promise((resolve, reject) => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css";
+        document.head.appendChild(link);
+        const s1 = document.createElement("script");
+        s1.src = "https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js";
+        s1.onload = () => {
+          const s2 = document.createElement("script");
+          s2.src = "https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js";
+          s2.onload = resolve; s2.onerror = reject;
+          document.head.appendChild(s2);
+        };
+        s1.onerror = reject;
+        document.head.appendChild(s1);
+      });
+      return _fpLoading;
+    }
+
     const chartData = {{ chart_data_json | safe }};
     const redDays = new Set(chartData.red_days);
     const days = [];
@@ -709,6 +743,7 @@
         setState("⏳ 생성 중...", true);
         document.body.classList.add("capturing");
         try {
+          await loadHtml2Canvas();
           // Plotly 차트 렌더 안정화
           await new Promise(r => setTimeout(r, 300));
           const target = document.querySelector(".container");
@@ -781,8 +816,9 @@
     // ===== Raw 데이터 CSV 다운로드 모달 =====
     const EXPORT_MIN = "{{ export_min_date }}";
     const EXPORT_MAX = "{{ export_max_date }}";
-    let _fpStart = null, _fpEnd = null;
-    (function initExportPickers() {
+    let _fpStart = null, _fpEnd = null, _pickersInited = false;
+    function initExportPickers() {
+      if (_pickersInited) return;
       const s = document.getElementById("exportStart");
       const e = document.getElementById("exportEnd");
       if (!s || !e || typeof flatpickr === "undefined") return;
@@ -814,9 +850,11 @@
           }
         },
       });
-    })();
+      _pickersInited = true;
+    }
     function openExportModal() {
       document.getElementById("exportModal").classList.add("open");
+      loadFlatpickr().then(initExportPickers).catch((e) => console.warn("flatpickr load failed", e));
       document.getElementById("exportResult").textContent = "";
     }
     function closeExportModal() {

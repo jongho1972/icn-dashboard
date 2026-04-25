@@ -18,6 +18,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -43,6 +44,7 @@ FINAL_DIR = BASE / "Final_Data"
 DEST_PATH = BASE / "항공편목적지.txt"
 
 app = FastAPI(title="인천공항 국제선 출발편 현황")
+app.add_middleware(GZipMiddleware, minimum_size=500)
 templates = Jinja2Templates(directory=str(BASE / "templates"))
 
 if (BASE / "static").is_dir():
@@ -467,7 +469,7 @@ async def index(request: Request):
         },
     }
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "index.html",
         {
@@ -494,6 +496,8 @@ async def index(request: Request):
             "export_max_date": _latest_available_date().isoformat(),
         },
     )
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+    return response
 
 
 # ---------- 도착지 매핑 추가 (GitHub Contents API) ----------
