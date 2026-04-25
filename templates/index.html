@@ -6,6 +6,9 @@
   <title>인천공항 국제선 출발편 현황</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js" charset="utf-8"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js"></script>
   <style>
     :root {
       --navy-900: #0B2E5C;
@@ -442,7 +445,7 @@
   <div id="exportModal" class="modal-backdrop" onclick="if(event.target===this) closeExportModal()">
     <div class="modal" onclick="event.stopPropagation()">
       <button type="button" class="modal-close" onclick="closeExportModal()" aria-label="닫기">✕</button>
-      <h2>Raw 데이터 CSV 다운로드</h2>
+      <h2>Raw Data Download</h2>
       <p>선택한 기간의 데이터를 CSV 파일로 저장할 수 있습니다. (최대 1년)</p>
       <form id="exportForm" onsubmit="doExport(event)">
         <table>
@@ -451,9 +454,8 @@
               <label for="exportStart" style="color:var(--slate-700);font-weight:500;">시작일</label>
             </td>
             <td style="padding:10px 6px;">
-              <input type="date" id="exportStart" name="start"
-                     value="{{ export_default_start }}"
-                     min="{{ export_min_date }}" max="{{ export_max_date }}" required>
+              <input type="text" id="exportStart" name="start"
+                     value="{{ export_default_start }}" required readonly>
             </td>
           </tr>
           <tr>
@@ -461,9 +463,8 @@
               <label for="exportEnd" style="color:var(--slate-700);font-weight:500;">종료일</label>
             </td>
             <td style="padding:10px 6px;">
-              <input type="date" id="exportEnd" name="end"
-                     value="{{ export_default_end }}"
-                     min="{{ export_min_date }}" max="{{ export_max_date }}" required>
+              <input type="text" id="exportEnd" name="end"
+                     value="{{ export_default_end }}" required readonly>
             </td>
           </tr>
         </table>
@@ -754,17 +755,38 @@
     // ===== Raw 데이터 CSV 다운로드 모달 =====
     const EXPORT_MIN = "{{ export_min_date }}";
     const EXPORT_MAX = "{{ export_max_date }}";
-    (function syncExportDateBounds() {
+    let _fpStart = null, _fpEnd = null;
+    (function initExportPickers() {
       const s = document.getElementById("exportStart");
       const e = document.getElementById("exportEnd");
-      if (!s || !e) return;
-      s.addEventListener("change", () => {
-        e.min = s.value || EXPORT_MIN;
-        if (e.value && e.value < e.min) e.value = e.min;
+      if (!s || !e || typeof flatpickr === "undefined") return;
+      const common = {
+        locale: "ko",
+        dateFormat: "Y-m-d",
+        minDate: EXPORT_MIN,
+        maxDate: EXPORT_MAX,
+        disableMobile: true,
+        allowInput: false,
+      };
+      _fpStart = flatpickr(s, {
+        ...common,
+        onChange: ([d]) => {
+          if (_fpEnd && d) {
+            _fpEnd.set("minDate", d);
+            const ev = _fpEnd.selectedDates[0];
+            if (ev && ev < d) _fpEnd.setDate(d, true);
+          }
+        },
       });
-      e.addEventListener("change", () => {
-        s.max = e.value || EXPORT_MAX;
-        if (s.value && s.value > s.max) s.value = s.max;
+      _fpEnd = flatpickr(e, {
+        ...common,
+        onChange: ([d]) => {
+          if (_fpStart && d) {
+            _fpStart.set("maxDate", d);
+            const sv = _fpStart.selectedDates[0];
+            if (sv && sv > d) _fpStart.setDate(d, true);
+          }
+        },
       });
     })();
     function openExportModal() {
