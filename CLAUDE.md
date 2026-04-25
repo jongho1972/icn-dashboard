@@ -33,7 +33,8 @@ uvicorn main:app --reload --port 8000
 - **이번달**: 최근 10일치(D-3~D+6) API 실시간 + `Daily_Data/` 과거 일별 pkl 병합 → 가공
 - **지난달**: `Final_Data/flight_schedule_YYYYMM_cum.pkl` 우선, 없으면 `Daily_Data` 재가공
 - **매일 자동 수집**: Claude Code 스케줄 트리거 → `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → Render 자동 재배포
-- **캐싱**: 1시간 TTL 인메모리 캐시 (모든 요청 공유). 새로고침 시 즉시 표시, 1시간 경과 첫 요청에서만 API 재호출.
+- **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 디스크에서 즉시 로드.
+- **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출. 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
 
 ## 집계 규칙
 
@@ -82,18 +83,23 @@ uvicorn main:app --reload --port 8000
 
 - **Render (무료 플랜)**: GitHub 푸시 시 자동 재빌드
 - URL: <https://jhawk-flight-schedule.onrender.com>
-- Env: `INCHEON_API_KEY` (Render Dashboard → Environment)
+- Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (Render Dashboard → Environment)
 
-## 자동 수집
+## 자동화
 
-- **Claude Code 스케줄 트리거** `trig_01KXfKu4nJ4A1asgvekGCiBN`
+- **Claude Code 스케줄 트리거** `trig_01KXfKu4nJ4A1asgvekGCiBN` (Daily_Data 수집)
   - 스케줄: `0 8 * * *` UTC = 매일 17:00 KST
   - 동작: 원격 에이전트가 레포 clone → `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
   - 관리: <https://claude.ai/code/scheduled/trig_01KXfKu4nJ4A1asgvekGCiBN>
+- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지)
+  - 스케줄: 10분마다 `/healthz` 핑
+- **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
+  - 스케줄: `0 1,8 * * *` UTC = 매일 10:00 / 17:00 KST
+  - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
 
 ## 참고
 
 - 인천공항 API: <https://www.data.go.kr/data/15112968/openapi.do>
 - D-3 ~ D+6 10일치만 반환. 그 외 기간은 누적 데이터 필요.
 - 2024/12 대한항공-아시아나 합병 후 **아시아나는 T2**, 에어부산·에어서울도 T2.
-- Plotly.js CDN (`https://cdn.plot.ly/plotly-2.35.3.min.js`) 로드 후 client-side 렌더.
+- Plotly.js basic CDN (`https://cdn.plot.ly/plotly-basic-2.35.3.min.js`) 로드 후 client-side 렌더. html2canvas·flatpickr는 사용 시점 lazy load.
