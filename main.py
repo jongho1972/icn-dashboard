@@ -9,6 +9,7 @@ import base64
 import json
 import math
 import os
+import pickle
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -17,7 +18,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -50,9 +51,12 @@ templates = Jinja2Templates(directory=str(BASE / "templates"))
 if (BASE / "static").is_dir():
     app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 
-# ---------- 간단한 TTL 캐시 (모든 클라이언트 공유) ----------
+# ---------- TTL 캐시 (메모리 + 디스크 pickle) ----------
+# 갱신은 매일 10:00 / 17:00 KST cron(/api/refresh)이 담당.
+# TTL은 cron 누락 대비 안전 마진 (48h). 그 사이엔 디스크 캐시로 즉시 응답.
 _CACHE: dict[str, tuple[float, object]] = {}
-_TTL_SECONDS = 3600  # 1시간
+_TTL_SECONDS = 60 * 60 * 48  # 48시간
+CACHE_FILE = Path("/tmp") / "icn_dashboard_cache.pkl"
 
 
 def _cache_get(key: str):
@@ -66,6 +70,30 @@ def _cache_get(key: str):
 
 def _cache_set(key: str, val):
     _CACHE[key] = (time.time(), val)
+    _save_disk_cache()
+
+
+def _load_disk_cache() -> None:
+    if not CACHE_FILE.exists():
+        return
+    try:
+        with CACHE_FILE.open("rb") as f:
+            data = pickle.load(f)
+        if isinstance(data, dict):
+            _CACHE.update(data)
+    except Exception as exc:
+        print(f"[disk cache load] skipped: {exc!r}")
+
+
+def _save_disk_cache() -> None:
+    try:
+        CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE_FILE.with_suffix(".pkl.tmp")
+        with tmp.open("wb") as f:
+            pickle.dump(_CACHE, f)
+        tmp.replace(CACHE_FILE)
+    except Exception as exc:
+        print(f"[disk cache save] skipped: {exc!r}")
 
 
 # ---------- 집계 ----------
@@ -135,8 +163,10 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
 
 @app.on_event("startup")
 def warm_cache_on_startup() -> None:
-    """앱 기동 직후 이번달/지난달 데이터를 미리 캐시에 올려둔다.
+    """앱 기동 직후 디스크 캐시 → 메모리 로드. 비어있거나 만료면 fetch.
     실패해도 부팅을 막지 않는다 (요청 시 재시도)."""
+    _load_disk_cache()
+
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
         return
@@ -146,9 +176,44 @@ def warm_cache_on_startup() -> None:
         prev_year, prev_month = (
             (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
         )
+        # 디스크에서 이미 유효 캐시를 로드했다면 fetch_months가 그대로 반환.
         fetch_months(curr_year, curr_month, prev_year, prev_month, service_key)
     except Exception as exc:
         print(f"[warm_cache_on_startup] skipped: {exc!r}")
+
+
+@app.post("/api/refresh")
+async def refresh_cache(x_refresh_token: str | None = Header(None)):
+    """캐시 강제 갱신. cron(매일 10:00, 17:00 KST)이 호출.
+
+    REFRESH_TOKEN 환경변수가 설정돼 있으면 X-Refresh-Token 헤더 일치 필요.
+    """
+    expected = os.environ.get("REFRESH_TOKEN", "")
+    if expected and x_refresh_token != expected:
+        raise HTTPException(401, "invalid token")
+
+    service_key = os.environ.get("INCHEON_API_KEY", "")
+    if not service_key:
+        raise HTTPException(500, "INCHEON_API_KEY not set")
+
+    today = datetime.now(KST).date()
+    curr_year, curr_month = today.year, today.month
+    prev_year, prev_month = (
+        (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
+    )
+    _CACHE.clear()
+    try:
+        prev, curr, fetched_at = fetch_months(
+            curr_year, curr_month, prev_year, prev_month, service_key
+        )
+    except Exception as exc:
+        raise HTTPException(502, f"fetch failed: {exc!r}")
+    return {
+        "ok": True,
+        "fetched_at": fetched_at.isoformat(),
+        "curr_rows": int(len(curr)),
+        "prev_rows": int(len(prev)),
+    }
 
 
 # ---------- HTML 테이블 렌더러 (Streamlit df_to_html 포팅) ----------
