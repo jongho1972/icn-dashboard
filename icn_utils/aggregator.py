@@ -69,9 +69,10 @@ def agg_total(prev, curr, days):
         {"구분": "월누적",
          "T1_prev": t1p, "T1_curr": t1c,
          "T2_prev": t2p, "T2_curr": t2c},
+        # raw float 유지 → pct()가 누적과 동일한 비율 계산. 표시는 {:.0f} 포맷터가 정수화.
         {"구분": "일평균",
-         "T1_prev": round(t1p / days), "T1_curr": round(t1c / days),
-         "T2_prev": round(t2p / days), "T2_curr": round(t2c / days)},
+         "T1_prev": t1p / days, "T1_curr": t1c / days,
+         "T2_prev": t2p / days, "T2_curr": t2c / days},
     ]
 
 
