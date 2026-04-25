@@ -224,7 +224,7 @@ def _dow_diff_html(curr_cnt: int, avg: float | None) -> str:
     return (f', 전월 동요일 평균 대비 '
             f'<span style="color:{color};font-weight:500;'
             f'font-variant-numeric:tabular-nums;">'
-            f'{sign_n}{abs(diff):.0f}편({sign_p}{abs(r):.0%})</span>')
+            f'{sign_n}{abs(diff):.0f}편({sign_p}{abs(r):.1%})</span>')
 
 
 # ---------- 주말·공휴일 계산 ----------
