@@ -4,6 +4,7 @@ __pycache__/
 .streamlit/
 .venv/
 .env
+.claude/
 
 # 노트북: API 키 평문 포함되어 제외 (backfill.py 사용)
 항공편 자료수집 코드.ipynb
