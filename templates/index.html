@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>인천공항 국제선 출발편 현황</title>
-  <style id="auth-gate">body{display:none!important}</style>
+  <style id="auth-gate">html,body{visibility:hidden!important;overflow:hidden!important}</style>
   <script>
   (function() {
     var PASS = '0708';
@@ -26,7 +26,8 @@
       }
     } catch (e) {}
     if (gateStyle) {
-      gateStyle.textContent = 'body > *:not(#pw-overlay){display:none!important}';
+      // body는 visibility:hidden 유지 → 차트가 정상 너비로 렌더됨. 오버레이만 visible 로 노출
+      gateStyle.textContent = 'html,body{visibility:hidden!important;overflow:hidden!important}#pw-overlay,#pw-overlay *{visibility:visible!important}';
     }
     function mountGate() {
       var style = document.createElement('style');
@@ -60,6 +61,16 @@
         if (gateStyle) gateStyle.remove();
         overlay.remove();
         style.remove();
+        // 안전 차원: 차트가 visibility:hidden 상태에서 그려졌다면 한 번 더 리사이즈 트리거
+        setTimeout(function() {
+          try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+          if (window.Plotly && window.Plotly.Plots) {
+            ['chart_t1','chart_t2'].forEach(function(id) {
+              var el = document.getElementById(id);
+              if (el) { try { window.Plotly.Plots.resize(el); } catch (e) {} }
+            });
+          }
+        }, 50);
       }
       function check() {
         if (input.value === PASS) {
