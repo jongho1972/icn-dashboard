@@ -2,6 +2,16 @@
 
 인천공항 국제선 출발편 현황 월간 비교 대시보드 (FastAPI + Plotly.js → Render)
 
+## 접근 제어
+- `templates/index.html` 상단 인라인 비번 게이트 (`<style id="auth-gate">`)
+- 비번: `0708`, sessionStorage 키: `icn_dashboard_auth_ok` (신라 사이트 `shilla_auth_ok`와 키 분리)
+- 게이트는 `visibility:hidden` 방식 — 레이아웃 유지로 Plotly 차트가 컨테이너 너비 0이 아닌 정상 너비(1120px)로 렌더 보장
+- 세션 복원 감지(`navType==='back_forward' && !sameOriginRef`) 시 인증 무효화
+
+## 이미지 캡처(클립보드 복사)
+- html2canvas `scale: 4` + 다단 다운샘플링 → `TARGET_WIDTH: 1600px` PNG
+- 1600px 너비 PNG가 클립보드/슬라이드 붙여넣기에 충분히 또렷한 수준
+
 ## 구성
 
 | 파일 | 역할 |
