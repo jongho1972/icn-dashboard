@@ -3,7 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
   <title>인천공항 국제선 출발편 현황</title>
+  <style id="auth-gate">body{display:none!important}</style>
+  <script>
+  (function() {
+    var PASS = '0708';
+    var AUTH_KEY = 'icn_dashboard_auth_ok';
+    try {
+      var navEntry = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
+      var navType = navEntry ? navEntry.type : '';
+      var sameOriginRef = document.referrer && document.referrer.indexOf(location.origin) === 0;
+      if (navType === 'back_forward' && !sameOriginRef) {
+        sessionStorage.removeItem(AUTH_KEY);
+      }
+    } catch (e) {}
+    var gateStyle = document.getElementById('auth-gate');
+    try {
+      if (sessionStorage.getItem(AUTH_KEY) === '1') {
+        if (gateStyle) gateStyle.remove();
+        return;
+      }
+    } catch (e) {}
+    if (gateStyle) {
+      gateStyle.textContent = 'body > *:not(#pw-overlay){display:none!important}';
+    }
+    function mountGate() {
+      var style = document.createElement('style');
+      style.id = 'pw-style';
+      style.textContent =
+        '#pw-overlay{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif}' +
+        '#pw-box{text-align:center;padding:48px 40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08)}' +
+        '#pw-box h2{margin:0 0 8px;font-size:18px;color:#333}' +
+        '#pw-box p{color:#333;margin:0 0 8px;font-size:14px}' +
+        '#pw-box input{padding:12px 16px;font-size:18px;border:1px solid #ddd;border-radius:8px;text-align:center;width:140px;letter-spacing:8px}' +
+        '#pw-box input:focus{outline:none;border-color:#8C0023}' +
+        '#pw-box button{margin-left:8px;padding:12px 24px;font-size:14px;background:#8C0023;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600}' +
+        '#pw-box button:hover{background:#a80030}' +
+        '#pw-err{color:#c00;font-size:13px;margin-top:12px;display:none}';
+      document.head.appendChild(style);
+      var overlay = document.createElement('div');
+      overlay.id = 'pw-overlay';
+      overlay.innerHTML =
+        '<div id="pw-box">' +
+          '<h2>접근 제한</h2>' +
+          '<p>비밀번호를 입력하세요</p>' +
+          '<div><input id="pw-input" type="password" maxlength="10" autocomplete="off" autofocus>' +
+          '<button id="pw-btn" type="button">확인</button></div>' +
+          '<div id="pw-err">비밀번호가 올바르지 않습니다</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      var input = overlay.querySelector('#pw-input');
+      var err = overlay.querySelector('#pw-err');
+      function unlock() {
+        try { sessionStorage.setItem(AUTH_KEY, '1'); } catch (e) {}
+        if (gateStyle) gateStyle.remove();
+        overlay.remove();
+        style.remove();
+      }
+      function check() {
+        if (input.value === PASS) {
+          unlock();
+        } else {
+          err.style.display = 'block';
+          input.value = '';
+          input.focus();
+        }
+      }
+      overlay.querySelector('#pw-btn').addEventListener('click', check);
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') check();
+      });
+      setTimeout(function() { input.focus(); }, 0);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', mountGate);
+    } else {
+      mountGate();
+    }
+  })();
+  </script>
   <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <style>
