@@ -99,11 +99,19 @@ def process_raw(raw_df, dest_df):
 
     def _prior(x):
         if x["remark"] == "출발": return 1
-        if x["탑승구"] != "": return 2
+        g = x["탑승구"]
+        if pd.notna(g) and g != "": return 2
         return 3
 
     df["priority"] = df.apply(_prior, axis=1)
-    df = df.sort_values(["Flight_Key", "priority"]).drop_duplicates("Flight_Key", keep="first").drop(columns="priority")
+    # fId가 API 명세상 스케줄별 unique key — Flight_Key(편명+일자)는 자정 넘기는 편의 estimatedDateTime
+    # 변경 시 같은 운항이 두 키로 분리될 수 있어 fid 우선. 누락 시에만 Flight_Key fallback.
+    if "fid" in df.columns:
+        df["_dedup_key"] = df["fid"].where(df["fid"].notna() & (df["fid"] != ""), df["Flight_Key"])
+    else:
+        df["_dedup_key"] = df["Flight_Key"]
+    df = df.sort_values(["_dedup_key", "priority"]).drop_duplicates("_dedup_key", keep="first")
+    df = df.drop(columns=["priority", "_dedup_key"])
     df = pd.merge(df, dest_df, on="목적지", how="left")
     return df
 

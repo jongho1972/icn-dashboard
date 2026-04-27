@@ -42,7 +42,13 @@ def prepare(df):
     """집계 전 보조 컬럼 추가 + Master + 국제선 + 결항/회항 제외 필터."""
     df = df.copy()
     df["항공사"] = df["항공사"].fillna("")
-    df = df[(df["CODESHARE"] == "Master") & (df["지역"] != "국내선")]
+    df = df[df["CODESHARE"] == "Master"]
+    # 국제선 필터: typeOfFlight 컬럼(API 명세상 공식 필드, I=International)이 있으면 우선 사용,
+    # 없으면(과거 Final_Data cum pkl) 지역 매핑 fallback
+    if "typeOfFlight" in df.columns:
+        df = df[df["typeOfFlight"] == "I"]
+    else:
+        df = df[df["지역"] != "국내선"]
     df = df[~df["remark"].isin(["결항", "회항"])]
     df["항공사그룹"] = df["항공사"].apply(airline_group)
     df["게이트그룹"] = df["탑승구"].apply(gate_group)

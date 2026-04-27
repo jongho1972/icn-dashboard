@@ -49,9 +49,12 @@ uvicorn main:app --reload --port 8000
 ## 집계 규칙
 
 - `CODESHARE == "Master"`만 카운트 (공동운항 편 제외)
-- 국내선 제외
+- 국내선 제외 — `typeOfFlight == "I"` (API 명세 공식 필드) 우선, 컬럼 누락 시 `지역 != "국내선"` fallback
 - **결항·회항 제외** (`remark` 값이 "결항" 또는 "회항"인 건 제외)
 - 지난달·이번달 동일기간 비교 (양쪽 모두 `DD <= 이번달_max_day` 필터)
+- **dedup 키**: process_raw 내부에서 `fid`(API 명세상 unique) 우선, 누락 시 `Flight_Key`(편명+일자) fallback. 자정 넘기는 편의 estimatedDateTime 변경으로 같은 운항이 두 Flight_Key로 분리되는 케이스를 방지
+
+> **Final_Data cum pkl 재생성 시 주의**: 외부 노트북에서 cum pkl을 다시 만들 때 `typeOfFlight`, `fid` 컬럼을 결과에 **반드시 포함**시킬 것. 현재 cum pkl에는 두 필드가 누락되어 있어 prepare()는 fallback 경로로 동작 중. 재생성 시점에 포함시키면 강한 필터·강한 dedup이 자동 적용됨.
 
 **게이트 분류 (T1·T2 공용):**
 - **동편**: 1 ~ 24 또는 251 ~ 299
