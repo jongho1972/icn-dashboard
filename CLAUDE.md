@@ -100,10 +100,11 @@ uvicorn main:app --reload --port 8000
 
 ## 자동화
 
-- **Claude Code 스케줄 트리거** `trig_01KXfKu4nJ4A1asgvekGCiBN` (Daily_Data 수집)
-  - 스케줄: `0 8 * * *` UTC = 매일 17:00 KST
-  - 동작: 원격 에이전트가 레포 clone → `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
-  - 관리: <https://claude.ai/code/scheduled/trig_01KXfKu4nJ4A1asgvekGCiBN>
+- **GitHub Actions** `.github/workflows/daily-backfill.yml` (Daily_Data 수집)
+  - 스케줄: `30 7 * * *` UTC = 매일 16:30 KST (refresh-cache 17:00 KST 30분 전 마진)
+  - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
+  - Secret: `INCHEON_API_KEY` (GitHub repo secret)
+  - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
 - **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지)
   - 스케줄: 10분마다 `/healthz` 핑
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
