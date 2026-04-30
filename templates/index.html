@@ -185,6 +185,26 @@
     }
     .unmapped-banner .open-modal-btn:hover { background: #451A03; }
 
+    /* 미리보기 모드 배너 */
+    .preview-bar {
+      margin: 12px 0 0 0; padding: 10px 14px;
+      background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 6px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      flex-wrap: wrap;
+      font-size: 13px; color: #3730A3;
+    }
+    .preview-bar b { color: #312E81; }
+    .preview-toggles { display: flex; gap: 6px; }
+    .preview-link {
+      display: inline-block; padding: 5px 11px;
+      background: #fff; color: #4338CA; text-decoration: none;
+      border: 1px solid #C7D2FE; border-radius: 4px;
+      font-size: 12px; font-weight: 600;
+    }
+    .preview-link:hover { background: #E0E7FF; }
+    .preview-link.active { background: #4338CA; color: #fff; border-color: #4338CA; }
+    body.capturing .preview-bar { display: none; }
+
     /* 모달 */
     .modal-backdrop {
       display: none; position: fixed; inset: 0;
@@ -464,6 +484,25 @@
       </div>
     </div>
     <div class="period-note">{{ period_note }}</div>
+
+    {% if is_month_end %}
+    <div class="preview-bar">
+      <div class="preview-msg">
+        {% if is_next_preview %}
+          <b>다음달({{ nxt_month }}월) 미리보기</b> — 인천공항 API D+6 한계로 1~{{ max_day }}일치만 집계 표시
+        {% else %}
+          {{ today_month }}월 말일 — <b>이번달({{ today_month }}월)</b>로 보고 있는 중
+        {% endif %}
+      </div>
+      <div class="preview-toggles">
+        {% if is_next_preview %}
+          <a href="/?view=current" class="preview-link">이번달({{ today_month }}월)로 보기</a>
+        {% else %}
+          <a href="/" class="preview-link">다음달({{ nxt_month }}월) 미리보기</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     {% if unmapped %}
     <div class="unmapped-banner">

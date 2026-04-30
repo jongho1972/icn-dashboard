@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import base64
+import calendar
 import json
 import math
 import os
@@ -410,7 +411,7 @@ def daily_combined_html(curr, prev, curr_label: str, prev_label: str,
 
 # ---------- 메인 라우트 ----------
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, view: str | None = None):
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
         return HTMLResponse(
@@ -419,10 +420,22 @@ async def index(request: Request):
         )
 
     today = datetime.now(KST).date()
-    curr_year, curr_month = today.year, today.month
-    prev_year, prev_month = (
-        (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
-    )
+    last_dom = calendar.monthrange(today.year, today.month)[1]
+    is_month_end = (today.day == last_dom)
+
+    # 말일에는 다음달 미리보기를 default로 (?view=current로 이번달 강제 가능)
+    is_next_preview = is_month_end and view != "current"
+
+    nxt_year, nxt_month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+
+    if is_next_preview:
+        curr_year, curr_month = nxt_year, nxt_month
+        prev_year, prev_month = today.year, today.month
+    else:
+        curr_year, curr_month = today.year, today.month
+        prev_year, prev_month = (
+            (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
+        )
 
     prev, curr, fetched_at = fetch_months(
         curr_year, curr_month, prev_year, prev_month, service_key
@@ -465,6 +478,7 @@ async def index(request: Request):
     )
 
     # D+1일 요약 (내일 예정 편수 + 전월 동요일 평균 대비)
+    # 다음달 미리보기 모드에서도 today+1=다음달 1일이 curr_month에 속해 자연스럽게 표시됨
     tomorrow = today + timedelta(days=1)
     tomorrow_summary_html = None
     if (tomorrow.year == curr_year and tomorrow.month == curr_month
@@ -538,6 +552,10 @@ async def index(request: Request):
         request,
         "index.html",
         {
+            "is_next_preview": is_next_preview,
+            "is_month_end": is_month_end,
+            "nxt_month": nxt_month,
+            "today_month": today.month,
             "prev_label": prev_label,
             "curr_label": curr_label,
             "max_day": max_day,
