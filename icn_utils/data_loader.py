@@ -1,4 +1,5 @@
 """인천공항 API 호출 + 누적 pkl 로드 + 가공."""
+import calendar
 import os
 import requests
 import pandas as pd
@@ -148,7 +149,11 @@ def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=Non
         cum = load_final_month(final_dir, yyyymm)
         if len(cum) > 0:
             df = cum.drop_duplicates("Flight_Key")
-            return df[(df["YYYY"] == year) & (df["MM"] == month)]
+            df = df[(df["YYYY"] == year) & (df["MM"] == month)]
+            # 부분 cum pkl 감지: 그 달의 말일보다 max DD가 작으면 신뢰하지 않고 폴백
+            last_dom = calendar.monthrange(year, month)[1]
+            if "DD" in df.columns and len(df) > 0 and int(df["DD"].max()) >= last_dom:
+                return df
     raw_daily = load_daily_month(daily_dir, yyyymm)
     parts = [d for d in [raw_daily, raw_api] if d is not None and len(d) > 0]
     if not parts:
