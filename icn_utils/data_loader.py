@@ -131,17 +131,24 @@ def build_current_month(daily_dir, dest_df, service_key, year, month, raw_api=No
     return df
 
 
-def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=None):
+def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=None, today=None):
     """지난달 데이터 = Final_Data cum pkl 우선, 없으면 Daily_Data + API(prev월 분만) 재가공.
 
     raw_api가 주어지면 D-3~D+6 윈도우 중 prev월에 속한 일자도 보강 — 이번달 1~3일이나
     미리보기 모드(이번달 말일에 다음달 미리보기)에서 Daily_Data 백필 누락분을 메운다.
+
+    today: cum pkl을 신뢰할지 판단용. (year, month)가 today의 월 이상이면 진행중·미래월
+    이라 cum pkl이 부분 데이터일 수 있어 무시하고 Daily+API로 재구성한다.
     """
     yyyymm = f"{year:04d}{month:02d}"
-    cum = load_final_month(final_dir, yyyymm)
-    if len(cum) > 0:
-        df = cum.drop_duplicates("Flight_Key")
-        return df[(df["YYYY"] == year) & (df["MM"] == month)]
+    if today is None:
+        today = date.today()
+    is_completed_month = (year, month) < (today.year, today.month)
+    if is_completed_month:
+        cum = load_final_month(final_dir, yyyymm)
+        if len(cum) > 0:
+            df = cum.drop_duplicates("Flight_Key")
+            return df[(df["YYYY"] == year) & (df["MM"] == month)]
     raw_daily = load_daily_month(daily_dir, yyyymm)
     parts = [d for d in [raw_daily, raw_api] if d is not None and len(d) > 0]
     if not parts:

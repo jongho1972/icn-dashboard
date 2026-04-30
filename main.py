@@ -155,8 +155,9 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
 
     dest = load_dest()
     raw_api = fetch_recent(service_key)
+    today_kst = datetime.now(KST).date()
     curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
-    prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api)
+    prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api, today=today_kst)
     fetched_at = datetime.now(KST)
     result = (prev, curr, fetched_at)
     _cache_set(key, result)
