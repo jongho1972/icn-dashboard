@@ -116,11 +116,12 @@ def process_raw(raw_df, dest_df):
     return df
 
 
-def build_current_month(daily_dir, dest_df, service_key, year, month):
+def build_current_month(daily_dir, dest_df, service_key, year, month, raw_api=None):
     """이번달 데이터 = Daily_Data 과거 pkl + 최신 API (D-3~D+6) 병합 → 가공."""
     yyyymm = f"{year:04d}{month:02d}"
     raw_daily = load_daily_month(daily_dir, yyyymm)
-    raw_api = fetch_recent(service_key)
+    if raw_api is None:
+        raw_api = fetch_recent(service_key)
     raw = pd.concat([raw_daily, raw_api], ignore_index=True) if len(raw_daily) and len(raw_api) else (raw_daily if len(raw_daily) else raw_api)
     if len(raw) == 0:
         return pd.DataFrame()
@@ -130,15 +131,21 @@ def build_current_month(daily_dir, dest_df, service_key, year, month):
     return df
 
 
-def build_previous_month(final_dir, daily_dir, dest_df, year, month):
-    """지난달 데이터 = Final_Data cum pkl 우선, 없으면 Daily_Data 재가공."""
+def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=None):
+    """지난달 데이터 = Final_Data cum pkl 우선, 없으면 Daily_Data + API(prev월 분만) 재가공.
+
+    raw_api가 주어지면 D-3~D+6 윈도우 중 prev월에 속한 일자도 보강 — 이번달 1~3일이나
+    미리보기 모드(이번달 말일에 다음달 미리보기)에서 Daily_Data 백필 누락분을 메운다.
+    """
     yyyymm = f"{year:04d}{month:02d}"
     cum = load_final_month(final_dir, yyyymm)
     if len(cum) > 0:
         df = cum.drop_duplicates("Flight_Key")
         return df[(df["YYYY"] == year) & (df["MM"] == month)]
     raw_daily = load_daily_month(daily_dir, yyyymm)
-    if len(raw_daily) == 0:
+    parts = [d for d in [raw_daily, raw_api] if d is not None and len(d) > 0]
+    if not parts:
         return pd.DataFrame()
-    df = process_raw(raw_daily, dest_df).drop_duplicates("Flight_Key")
+    raw = parts[0] if len(parts) == 1 else pd.concat(parts, ignore_index=True)
+    df = process_raw(raw, dest_df).drop_duplicates("Flight_Key")
     return df[(df["YYYY"] == year) & (df["MM"] == month)]

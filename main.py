@@ -33,7 +33,7 @@ from icn_utils.aggregator import (
     pct, prepare, rows_to_df,
 )
 from icn_utils.data_loader import (
-    build_current_month, build_previous_month,
+    build_current_month, build_previous_month, fetch_recent,
     load_daily_month, load_final_month, process_raw,
 )
 
@@ -154,8 +154,9 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
         return cached
 
     dest = load_dest()
-    curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month)
-    prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month)
+    raw_api = fetch_recent(service_key)
+    curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
+    prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api)
     fetched_at = datetime.now(KST)
     result = (prev, curr, fetched_at)
     _cache_set(key, result)
