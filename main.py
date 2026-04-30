@@ -7,10 +7,13 @@ from __future__ import annotations
 
 import base64
 import calendar
+import hmac
 import json
+import logging
 import math
 import os
 import pickle
+import threading
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -39,6 +42,11 @@ from icn_utils.data_loader import (
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 KST = ZoneInfo("Asia/Seoul")
 BASE = Path(__file__).resolve().parent
 DAILY_DIR = BASE / "Daily_Data"
@@ -56,22 +64,37 @@ if (BASE / "static").is_dir():
 # 갱신은 매일 10:00 / 17:00 KST cron(/api/refresh)이 담당.
 # TTL은 cron 누락 대비 안전 마진 (48h). 그 사이엔 디스크 캐시로 즉시 응답.
 _CACHE: dict[str, tuple[float, object]] = {}
+_CACHE_LOCK = threading.Lock()
 _TTL_SECONDS = 60 * 60 * 48  # 48시간
 CACHE_FILE = Path("/tmp") / "icn_dashboard_cache.pkl"
 
+logger = logging.getLogger("icn_dashboard")
+
 
 def _cache_get(key: str):
-    if key not in _CACHE:
-        return None
-    ts, val = _CACHE[key]
-    if time.time() - ts > _TTL_SECONDS:
-        return None
-    return val
+    with _CACHE_LOCK:
+        entry = _CACHE.get(key)
+        if entry is None:
+            return None
+        ts, val = entry
+        if time.time() - ts > _TTL_SECONDS:
+            return None
+        return val
 
 
 def _cache_set(key: str, val):
-    _CACHE[key] = (time.time(), val)
-    _save_disk_cache()
+    with _CACHE_LOCK:
+        _CACHE[key] = (time.time(), val)
+        snapshot = dict(_CACHE)
+    _save_disk_cache(snapshot)
+
+
+def _cache_invalidate(key: str) -> None:
+    """단일 키만 무효화. 다른 캐시 엔트리는 유지."""
+    with _CACHE_LOCK:
+        _CACHE.pop(key, None)
+        snapshot = dict(_CACHE)
+    _save_disk_cache(snapshot)
 
 
 def _load_disk_cache() -> None:
@@ -81,20 +104,24 @@ def _load_disk_cache() -> None:
         with CACHE_FILE.open("rb") as f:
             data = pickle.load(f)
         if isinstance(data, dict):
-            _CACHE.update(data)
+            with _CACHE_LOCK:
+                _CACHE.update(data)
     except Exception as exc:
-        print(f"[disk cache load] skipped: {exc!r}")
+        logger.warning("disk cache load skipped: %r", exc)
 
 
-def _save_disk_cache() -> None:
+def _save_disk_cache(snapshot: dict | None = None) -> None:
     try:
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = CACHE_FILE.with_suffix(".pkl.tmp")
+        tmp = CACHE_FILE.with_suffix(f".pkl.tmp.{os.getpid()}")
+        if snapshot is None:
+            with _CACHE_LOCK:
+                snapshot = dict(_CACHE)
         with tmp.open("wb") as f:
-            pickle.dump(_CACHE, f)
+            pickle.dump(snapshot, f)
         tmp.replace(CACHE_FILE)
     except Exception as exc:
-        print(f"[disk cache save] skipped: {exc!r}")
+        logger.warning("disk cache save skipped: %r", exc)
 
 
 # ---------- 집계 ----------
@@ -182,18 +209,22 @@ def warm_cache_on_startup() -> None:
         # 디스크에서 이미 유효 캐시를 로드했다면 fetch_months가 그대로 반환.
         fetch_months(curr_year, curr_month, prev_year, prev_month, service_key)
     except Exception as exc:
-        print(f"[warm_cache_on_startup] skipped: {exc!r}")
+        logger.warning("warm_cache_on_startup skipped: %r", exc)
 
 
 @app.post("/api/refresh")
-async def refresh_cache(x_refresh_token: str | None = Header(None)):
+def refresh_cache(x_refresh_token: str | None = Header(None)):
     """캐시 강제 갱신. cron(매일 10:00, 17:00 KST)이 호출.
 
     REFRESH_TOKEN 환경변수가 설정돼 있으면 X-Refresh-Token 헤더 일치 필요.
+    동기 함수로 정의 — FastAPI가 자동으로 threadpool에서 실행해 이벤트 루프 블록 방지.
     """
     expected = os.environ.get("REFRESH_TOKEN", "")
-    if expected and x_refresh_token != expected:
-        raise HTTPException(401, "invalid token")
+    if expected:
+        if x_refresh_token is None or not hmac.compare_digest(
+            x_refresh_token.encode("utf-8"), expected.encode("utf-8")
+        ):
+            raise HTTPException(401, "invalid token")
 
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
@@ -204,7 +235,9 @@ async def refresh_cache(x_refresh_token: str | None = Header(None)):
     prev_year, prev_month = (
         (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
     )
-    _CACHE.clear()
+    # 키 단위 무효화 후 재조회 — 다른 캐시 엔트리는 유지, 빈 캐시 노출도 회피
+    key = f"{curr_year}-{curr_month}-{prev_year}-{prev_month}"
+    _cache_invalidate(key)
     try:
         prev, curr, fetched_at = fetch_months(
             curr_year, curr_month, prev_year, prev_month, service_key
@@ -413,7 +446,7 @@ def daily_combined_html(curr, prev, curr_label: str, prev_label: str,
 
 # ---------- 메인 라우트 ----------
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, view: str | None = None):
+def index(request: Request, view: str | None = None):
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
         return HTMLResponse(
@@ -692,7 +725,7 @@ async def destinations_health():
 
 
 @app.post("/api/add-destinations")
-async def add_destinations(req: AddDestRequest):
+def add_destinations(req: AddDestRequest):
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise HTTPException(
@@ -709,8 +742,11 @@ async def add_destinations(req: AddDestRequest):
     except Exception as e:
         raise HTTPException(500, f"커밋 실패: {e}")
 
-    # 캐시 무효화 (다음 접속 시 최신 데이터 재로드)
-    _CACHE.clear()
+    # 도착지 매핑 변경은 모든 월 캐시에 영향 — 일괄 무효화
+    with _CACHE_LOCK:
+        _CACHE.clear()
+        snapshot = dict(_CACHE)
+    _save_disk_cache(snapshot)
     commit_sha = (result.get("commit") or {}).get("sha", "")
     return JSONResponse({"ok": True, "commit_sha": commit_sha, "count": len(req.entries)})
 

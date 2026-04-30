@@ -1,9 +1,12 @@
 """인천공항 API 호출 + 누적 pkl 로드 + 가공."""
 import calendar
+import logging
 import os
 import requests
 import pandas as pd
 from datetime import date, datetime, timedelta
+
+logger = logging.getLogger("icn_dashboard.data_loader")
 
 API_URL = "http://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
 
@@ -132,11 +135,12 @@ def build_current_month(daily_dir, dest_df, service_key, year, month, raw_api=No
     return df
 
 
-def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=None, today=None):
+def build_previous_month(final_dir, daily_dir, dest_df, year, month, *, raw_api, today=None):
     """지난달 데이터 = Final_Data cum pkl 우선, 없으면 Daily_Data + API(prev월 분만) 재가공.
 
-    raw_api가 주어지면 D-3~D+6 윈도우 중 prev월에 속한 일자도 보강 — 이번달 1~3일이나
-    미리보기 모드(이번달 말일에 다음달 미리보기)에서 Daily_Data 백필 누락분을 메운다.
+    raw_api: 호출자가 명시적으로 전달해야 하는 keyword-only. 진행중인 월이 prev로
+    분류되거나(말일 미리보기) 백필 누락이 있을 때 raw_api로 보강 — None을 명시 전달
+    하면 보강 없이 Daily만 사용.
 
     today: cum pkl을 신뢰할지 판단용. (year, month)가 today의 월 이상이면 진행중·미래월
     이라 cum pkl이 부분 데이터일 수 있어 무시하고 Daily+API로 재구성한다.
@@ -152,8 +156,15 @@ def build_previous_month(final_dir, daily_dir, dest_df, year, month, raw_api=Non
             df = df[(df["YYYY"] == year) & (df["MM"] == month)]
             # 부분 cum pkl 감지: 그 달의 말일보다 max DD가 작으면 신뢰하지 않고 폴백
             last_dom = calendar.monthrange(year, month)[1]
-            if "DD" in df.columns and len(df) > 0 and int(df["DD"].max()) >= last_dom:
-                return df
+            if "DD" in df.columns and len(df) > 0:
+                cum_max_dd = int(df["DD"].max())
+                if cum_max_dd >= last_dom:
+                    return df
+                logger.info(
+                    "partial cum pkl for %s detected (max DD=%d < last_dom=%d) — "
+                    "falling back to Daily+API",
+                    yyyymm, cum_max_dd, last_dom,
+                )
     raw_daily = load_daily_month(daily_dir, yyyymm)
     parts = [d for d in [raw_daily, raw_api] if d is not None and len(d) > 0]
     if not parts:
