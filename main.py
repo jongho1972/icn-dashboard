@@ -485,8 +485,8 @@ async def index(request: Request, view: str | None = None):
             and tomorrow.day <= max_day):
         tmr_dd = tomorrow.day
         tmr_wd = tomorrow.weekday()
-        prev_t1 = prev_same[prev_same["터미널"] == "T1"]
-        prev_t2 = prev_same[prev_same["터미널"] == "T2"]
+        prev_t1 = prev[prev["터미널"] == "T1"]
+        prev_t2 = prev[prev["터미널"] == "T2"]
         avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month).get(tmr_wd)
         avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month).get(tmr_wd)
         t1_tmr = int(((curr["터미널"] == "T1") & (curr["DD"] == tmr_dd)).sum())
@@ -507,44 +507,68 @@ async def index(request: Request, view: str | None = None):
     df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
     region_html = df_to_html(df_region, prev_label, curr_label)
 
-    # 게이트별: D-1 기준
+    # 게이트별: D-1 기준 (운항정보 마감)
     d_minus_1 = today - timedelta(days=1)
-    gate_cutoff = (
-        d_minus_1.day
-        if (d_minus_1.year == curr_year and d_minus_1.month == curr_month)
-        else max_day
+    if d_minus_1.year == curr_year and d_minus_1.month == curr_month:
+        # 일반: D-1이 이번달 → 양쪽 모두 1~D-1일
+        gate_cutoff_curr = d_minus_1.day
+        gate_cutoff_prev = d_minus_1.day
+        gate_note = f'기간 : {prev_label}/{curr_label} 1~{gate_cutoff_curr}일 (운항정보 마감 기준)'
+    elif d_minus_1.year == prev_year and d_minus_1.month == prev_month:
+        # 미리보기/월초: D-1이 전월 → 전월 1~D-1일, 이번달은 미운항
+        gate_cutoff_curr = 0
+        gate_cutoff_prev = d_minus_1.day
+        gate_note = (
+            f'기간 : {prev_label} 1~{gate_cutoff_prev}일 '
+            f'(D-1 운항정보 마감 기준, {curr_label}은 미운항)'
+        )
+    else:
+        gate_cutoff_curr = max_day
+        gate_cutoff_prev = max_day
+        gate_note = f'기간 : {prev_label}/{curr_label} 1~{max_day}일 (운항정보 마감 기준)'
+
+    gate_prev = prev[prev["DD"] <= gate_cutoff_prev]
+    gate_curr = (
+        curr[curr["DD"] <= gate_cutoff_curr] if gate_cutoff_curr > 0 else curr.iloc[0:0]
     )
-    gate_prev = prev_same[prev_same["DD"] <= gate_cutoff]
-    gate_curr = curr[curr["DD"] <= gate_cutoff]
     df_gate = rows_to_df(agg_gate(gate_prev, gate_curr), prev_label, curr_label)
+    if gate_cutoff_curr == 0:
+        df_gate["T1_전월비"] = float("nan")
+        df_gate["T2_전월비"] = float("nan")
     gate_html = df_to_html(df_gate, prev_label, curr_label, total_row_idx=0)
-    gate_note = (
-        f'기간 : {prev_label}/{curr_label} 1~{gate_cutoff}일 (운항정보 마감 기준)'
-    )
 
     # 일자별 표
-    df_daily = rows_to_df(agg_daily(prev_same, curr, max_day), prev_label, curr_label)
     today_day_for_daily = (
         today.day if (today.year == curr_year and today.month == curr_month) else None
     )
     daily_html = daily_combined_html(
-        curr, prev_same, curr_label, prev_label,
+        curr, prev, curr_label, prev_label,
         curr_year, curr_month, prev_year, prev_month,
         max_day, today_day_for_daily,
     )
 
-    # 일자별 차트용 데이터
+    # 일자별 차트용 데이터: x축은 1~말일 전체, 데이터 없는 날은 null
+    last_day_prev = calendar.monthrange(prev_year, prev_month)[1]
+    last_day_curr = calendar.monthrange(curr_year, curr_month)[1]
+    chart_last_day = max(last_day_curr, last_day_prev)
+
+    def _day_series(df, term, data_until):
+        cnt = df[df["터미널"] == term].groupby("DD").size().to_dict()
+        return [int(cnt.get(d, 0)) if d <= data_until else None
+                for d in range(1, chart_last_day + 1)]
+
     chart_data = {
         "max_day": max_day,
+        "chart_last_day": chart_last_day,
         "curr_label": curr_label,
         "prev_label": prev_label,
-        "red_days": _red_days(curr_year, curr_month, max_day),
+        "red_days": _red_days(curr_year, curr_month, chart_last_day),
         "today_day": today.day if (today.year == curr_year and today.month == curr_month) else None,
         "series": {
-            "T1_prev": df_daily[f"T1_{prev_label}"].astype(int).tolist(),
-            "T1_curr": df_daily[f"T1_{curr_label}"].astype(int).tolist(),
-            "T2_prev": df_daily[f"T2_{prev_label}"].astype(int).tolist(),
-            "T2_curr": df_daily[f"T2_{curr_label}"].astype(int).tolist(),
+            "T1_prev": _day_series(prev, "T1", last_day_prev),
+            "T1_curr": _day_series(curr, "T1", max_day),
+            "T2_prev": _day_series(prev, "T2", last_day_prev),
+            "T2_curr": _day_series(curr, "T2", max_day),
         },
     }
 

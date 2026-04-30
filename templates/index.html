@@ -707,14 +707,15 @@
 
     const chartData = {{ chart_data_json | safe }};
     const redDays = new Set(chartData.red_days);
+    const chartLastDay = chartData.chart_last_day || chartData.max_day;
     const days = [];
-    for (let i = 1; i <= chartData.max_day; i++) days.push(i);
+    for (let i = 1; i <= chartLastDay; i++) days.push(i);
 
     // 모바일에서는 5일 간격 + Today + 말일만 tick 표시 (겹침 방지)
     function computeTicks() {
       const isMobile = window.matchMedia("(max-width: 640px)").matches;
       const td = isMobile
-        ? Array.from(new Set([1, 5, 10, 15, 20, 25, chartData.max_day, chartData.today_day].filter(d => d && d >= 1 && d <= chartData.max_day))).sort((a, b) => a - b)
+        ? Array.from(new Set([1, 5, 10, 15, 20, 25, chartLastDay, chartData.today_day].filter(d => d && d >= 1 && d <= chartLastDay))).sort((a, b) => a - b)
         : days;
       const tt = td.map(d =>
         redDays.has(d)
@@ -746,7 +747,7 @@
       if (prevAvg != null && isFinite(prevAvg)) {
         shapes.push({
           type: "line",
-          x0: 0.5, x1: chartData.max_day + 0.5,
+          x0: 0.5, x1: chartLastDay + 0.5,
           y0: prevAvg, y1: prevAvg,
           line: { color: "#94A3B8", width: 1.2, dash: "5px,4px" },
           xref: "x", yref: "y",
@@ -775,7 +776,7 @@
           tickfont: { size: 11, color: "#64748B" },
           showline: true, linecolor: "#CBD5E1",
           showgrid: false, zeroline: false,
-          range: [0.5, chartData.max_day + 0.5],
+          range: [0.5, chartLastDay + 0.5],
         },
         yaxis: {
           title: "",
@@ -810,15 +811,18 @@
       },
     ]);
 
-    // 공통 y범위
+    // 공통 y범위 (null 제외)
     const all = [].concat(
       chartData.series.T1_prev, chartData.series.T1_curr,
       chartData.series.T2_prev, chartData.series.T2_curr
-    );
+    ).filter(v => v != null);
     const yMin = Math.min(...all) - 10;
     const yMax = Math.max(...all) + 10;
 
-    const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+    const avg = arr => {
+      const xs = arr.filter(v => v != null);
+      return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null;
+    };
     const t1PrevAvg = avg(chartData.series.T1_prev);
     const t2PrevAvg = avg(chartData.series.T2_prev);
 
