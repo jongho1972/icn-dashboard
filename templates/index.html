@@ -584,6 +584,14 @@
       <button type="button" class="modal-close" onclick="closeExportModal()" aria-label="닫기">✕</button>
       <h2>Raw Data Download</h2>
       <p>선택한 기간의 데이터를 CSV 파일로 저장할 수 있습니다. (최대 1년)</p>
+      <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:10px 12px;margin:0 0 16px 0;font-size:12px;line-height:1.6;color:#78350F;">
+        <b>⚠ 본 파일은 무필터 원본 데이터</b>입니다. 대시보드 집계 숫자와 일치시키려면 다음 3가지 필터를 적용해야 합니다.
+        <ul style="margin:6px 0 0 18px;padding:0;">
+          <li><code>CODESHARE = Master</code> (공동운항편 제외)</li>
+          <li><code>remark</code>에서 <b>결항·회항 제외</b></li>
+          <li><code>도착지 구분</code>에서 <b>국내선 제외</b> (또는 국제선만 선택)</li>
+        </ul>
+      </div>
       <form id="exportForm" onsubmit="doExport(event)">
         <table>
           <tr>
