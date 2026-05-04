@@ -888,7 +888,7 @@
           // Plotly 차트 렌더 안정화
           await new Promise(r => setTimeout(r, 300));
           const target = document.querySelector(".container");
-          // 4배 스케일 캡처 → 1600px로 계단식 다운샘플링 (단계 수 증가 + 결과 픽셀 수 50% ↑)
+          // 4배 스케일 캡처 → 1200px로 계단식 다운샘플링 (메일 붙여넣기 사이즈 최적화)
           const srcCanvas = await html2canvas(target, {
             backgroundColor: "#ffffff",
             scale: 4,
@@ -899,7 +899,7 @@
           });
           document.body.classList.remove("capturing");
 
-          const TARGET_WIDTH = 1600;
+          const TARGET_WIDTH = 1200;
           // 계단식 다운샘플링: 절반씩 줄이며 앨리어싱 최소화
           let current = srcCanvas;
           while (current.width > TARGET_WIDTH * 2) {

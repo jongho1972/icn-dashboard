@@ -9,8 +9,8 @@
 - 세션 복원 감지(`navType==='back_forward' && !sameOriginRef`) 시 인증 무효화
 
 ## 이미지 캡처(클립보드 복사)
-- html2canvas `scale: 4` + 다단 다운샘플링 → `TARGET_WIDTH: 1600px` PNG
-- 1600px 너비 PNG가 클립보드/슬라이드 붙여넣기에 충분히 또렷한 수준
+- html2canvas `scale: 4` + 다단 다운샘플링 → `TARGET_WIDTH: 1200px` PNG
+- 1200px가 메일 붙여넣기 시 적당한 크기 (이전 1600px는 메일에서 다소 큼)
 
 ## 구성
 
