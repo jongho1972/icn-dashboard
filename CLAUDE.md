@@ -105,8 +105,8 @@ uvicorn main:app --reload --port 8000
   - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
-- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지)
-  - 스케줄: 10분마다 `/healthz` 핑
+- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지 + 페이로드 캐시 워밍)
+  - 스케줄: 10분마다 `GET /` 호출 (`--max-time 300` — 콜드 빌드 1~3분 흡수). 메인 페이지 페이로드 캐시까지 워밍해 컨테이너 재시작 후 첫 사용자가 빌드 비용 떠안는 일 방지
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
   - 스케줄: `0 1,8 * * *` UTC = 매일 10:00 / 17:00 KST
   - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
