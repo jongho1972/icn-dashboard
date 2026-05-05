@@ -4,9 +4,14 @@ import math
 import pandas as pd
 
 KR_ETC = {"이스타항공", "에어부산", "에어서울", "에어프레미아", "플라이강원",
-          "하이에어", "파라타항공", "에어인천", "플라이나스"}
+          "하이에어", "파라타항공", "에어인천", "에어로케이항공"}
 
-AIRLINES = ["대한항공", "아시아나", "진에어", "제주항공", "티웨이", "국내기타", "외국항공"]
+# 중국 본토 국적 항공사 (홍콩·마카오·대만 제외)
+CN_AIRLINES = {"중국국제항공", "중국남방항공", "중국동방항공", "중국해남항공",
+               "산동항공", "상하이항공", "샤먼항공", "심천항공", "사천항공",
+               "북경수도항공", "천진항공", "청도항공", "춘추항공", "길상항공"}
+
+AIRLINES = ["대한항공", "아시아나", "진에어", "제주항공", "티웨이", "국내기타", "중국", "중국외"]
 REGIONS = ["일본", "동남아", "중국", "미주", "동북아", "유럽", "기타"]
 REGION_MERGE = {"중동": "기타", "대양주": "기타"}  # 소규모 지역을 기타로 통합
 GATES = ["동편", "중앙", "서편", "탑승동"]
@@ -19,7 +24,8 @@ def airline_group(a):
     if a == "제주항공": return "제주항공"
     if a == "티웨이항공": return "티웨이"
     if a in KR_ETC: return "국내기타"
-    return "외국항공"
+    if a in CN_AIRLINES: return "중국"
+    return "중국외"
 
 
 def gate_group(g):
@@ -105,6 +111,7 @@ def agg_airline(prev, curr):
 
 
 def agg_region(prev, curr):
+    """이번달(curr) T1+T2 편수 내림차순으로 정렬."""
     rows = []
     for r in REGIONS:
         rows.append({
@@ -112,6 +119,7 @@ def agg_region(prev, curr):
             "T1_prev": _cnt(prev, "T1", 지역=r), "T1_curr": _cnt(curr, "T1", 지역=r),
             "T2_prev": _cnt(prev, "T2", 지역=r), "T2_curr": _cnt(curr, "T2", 지역=r),
         })
+    rows.sort(key=lambda x: x["T1_curr"] + x["T2_curr"], reverse=True)
     return rows
 
 

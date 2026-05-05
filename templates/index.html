@@ -339,11 +339,13 @@
     }
     table.icn thead th[rowspan],
     table.icn thead th.t1-group,
-    table.icn thead th.t2-group {
+    table.icn thead th.t2-group,
+    table.icn thead th.tot-group {
       text-align: center; padding: 10px 12px;
     }
     table.icn thead th.t1-group { background: var(--blue-025); color: var(--navy-900); }
     table.icn thead th.t2-group { background: var(--orange-025); color: var(--orange-600); }
+    table.icn thead th.tot-group { background: var(--slate-50); color: var(--slate-700); }
     table.icn colgroup col.col-label { width: 96px; }
     table.icn td { text-align: right; }
     table.icn td.label {
@@ -354,11 +356,13 @@
     table.icn td.pos { color: var(--blue-500); font-weight: 500; }
     table.icn td.neg { color: var(--red-600); font-weight: 500; }
     table.icn td.dash { color: var(--slate-400); font-weight: 400; }
-    table.icn th.t1-last, table.icn td.t1-last {
+    table.icn th.t1-last, table.icn td.t1-last,
+    table.icn th.t2-last, table.icn td.t2-last {
       border-right: 1px solid var(--slate-200);
       padding-right: 18px;
     }
-    table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 18px; }
+    table.icn th.t1-last + th, table.icn td.t1-last + td,
+    table.icn th.t2-last + th, table.icn td.t2-last + td { padding-left: 18px; }
 
     /* 소계 행 */
     table.icn tr.total-row td {
@@ -376,7 +380,7 @@
     table.icn.daily-t td.red-day { color: #C00000; }
     table.icn.daily-t thead tr:first-child th[rowspan] { text-align: center; }
 
-    /* 오늘 ~ 월말 (예정/미확정 일자) 하이라이트 */
+    /* D+1 (다음날 예정 편수) 하이라이트 */
     table.icn tr.future-row td {
       background: #FFF8E1; color: #78350F;
     }
@@ -456,7 +460,8 @@
       }
       table.icn colgroup col.col-label { width: 72px; }
       table.icn td.label { padding: 6px 8px; }
-      table.icn th.t1-last + th, table.icn td.t1-last + td { padding-left: 10px; }
+      table.icn th.t1-last + th, table.icn td.t1-last + td,
+      table.icn th.t2-last + th, table.icn td.t2-last + td { padding-left: 10px; }
       /* 헤더: 배지는 위 한 줄, 버튼 2개는 아래 한 줄로 나란히 */
       .header-row { flex-wrap: wrap; gap: 8px; }
       .header-actions {
@@ -520,16 +525,6 @@
     <div class="summary" style="margin-bottom: 1.75rem;">{{ tomorrow_summary_html | safe }}</div>
     {% endif %}
 
-    <div class="chart-legend">
-      <span class="swatch">
-        <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2" stroke="#334155" stroke-width="1.6" stroke-dasharray="3,3" opacity="0.8"/></svg>
-        <b>{{ prev_label }}</b>
-      </span>
-      <span class="swatch">
-        <svg width="32" height="4"><line x1="0" y1="2" x2="32" y2="2" stroke="#334155" stroke-width="2.5"/></svg>
-        <b>{{ curr_label }}</b>
-      </span>
-    </div>
     <div id="chart_t1" class="chart"></div>
     <div id="chart_t2" class="chart" style="margin-bottom: 28px;"></div>
 
@@ -560,9 +555,17 @@
         </ul>
       </div>
       <div class="footnote-block">
-        <div class="footnote-title">집계 제외 기준</div>
+        <div class="footnote-title">집계 제외 대상</div>
         <ul>
           <li>공동운항(코드쉐어), 국내선, 결항/회항</li>
+        </ul>
+      </div>
+      <div class="footnote-block">
+        <div class="footnote-title">항공사 그룹 분류</div>
+        <ul>
+          <li><b>국내기타</b>: 이스타항공 · 에어부산 · 에어서울 · 에어프레미아 등</li>
+          <li><b>중국</b>: 중국동방항공 · 중국남방항공 · 중국국제항공 · 산동항공 · 심천항공 · 샤먼항공 등</li>
+          <li><b>중국외</b>: 비엣젯항공 · 델타항공 · 베트남항공 · 피치항공 · 홍콩익스프레스 · 캐세이퍼시픽항공 등</li>
         </ul>
       </div>
       <div class="footnote-block">
@@ -736,17 +739,18 @@
     const commonLayout = (title, color, yMin, yMax, prevAvg) => {
       const shapes = [];
       const annotations = [];
-      if (chartData.today_day) {
+      if (chartData.today_day && chartData.today_day < chartLastDay) {
+        const tomorrowDay = chartData.today_day + 1;
         shapes.push({
           type: "line",
-          x0: chartData.today_day, x1: chartData.today_day,
+          x0: tomorrowDay, x1: tomorrowDay,
           y0: yMin, y1: yMax,
           line: { color: "#94A3B8", width: 1.2, dash: "5px,4px" },
           xref: "x", yref: "y",
         });
         annotations.push({
-          x: chartData.today_day, y: yMax,
-          text: "Today", showarrow: false,
+          x: tomorrowDay, y: yMax,
+          text: "D+1", showarrow: false,
           font: { size: 10, color: "#64748B", weight: 600 },
           xanchor: "left", yanchor: "top",
           xshift: 4, yshift: -2,
@@ -757,7 +761,7 @@
           type: "line",
           x0: 0.5, x1: chartLastDay + 0.5,
           y0: prevAvg, y1: prevAvg,
-          line: { color: "#94A3B8", width: 1.2, dash: "5px,4px" },
+          line: { color: "#94A3B8", width: 1.2 },
           xref: "x", yref: "y",
         });
         annotations.push({
@@ -804,15 +808,9 @@
       };
     };
 
-    const makeTraces = (prev, curr, color, currLabel, prevLabel) => ([
+    const makeTraces = (curr, color) => ([
       {
-        x: days, y: prev, mode: "lines", name: prevLabel,
-        line: { color: color, width: 1.4, dash: "3px,3px" },
-        opacity: 0.75,
-        hovertemplate: "%{y:,}편<extra></extra>",
-      },
-      {
-        x: days, y: curr, mode: "lines+markers", name: currLabel,
+        x: days, y: curr, mode: "lines+markers",
         line: { color: color, width: 2.2 },
         marker: { color: color, size: 6 },
         hovertemplate: "%{y:,}편<extra></extra>",
@@ -835,14 +833,12 @@
     const t2PrevAvg = avg(chartData.series.T2_prev);
 
     Plotly.newPlot("chart_t1",
-      makeTraces(chartData.series.T1_prev, chartData.series.T1_curr,
-                 "#1F6FEB", chartData.curr_label, chartData.prev_label),
+      makeTraces(chartData.series.T1_curr, "#1F6FEB"),
       commonLayout("T1", "#1F6FEB", yMin, yMax, t1PrevAvg),
       { displayModeBar: false, responsive: true });
 
     Plotly.newPlot("chart_t2",
-      makeTraces(chartData.series.T2_prev, chartData.series.T2_curr,
-                 "#C26420", chartData.curr_label, chartData.prev_label),
+      makeTraces(chartData.series.T2_curr, "#C26420"),
       commonLayout("T2", "#C26420", yMin, yMax, t2PrevAvg),
       { displayModeBar: false, responsive: true });
 
