@@ -146,6 +146,17 @@ def _latest_available_date() -> date:
         return datetime.now(KST).date()
 
 
+def _available_months(today: date) -> list[dict]:
+    """조회 가능한 월 목록 (최신→과거 순). dropdown 옵션용."""
+    earliest = _earliest_available_date()
+    months = []
+    y, m = today.year, today.month
+    while (y, m) >= (earliest.year, earliest.month):
+        months.append({"year": y, "month": m, "ym": f"{y}{m:02d}"})
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    return months
+
+
 def _earliest_available_date() -> date:
     """Final_Data 에서 가장 오래된 월의 1일(없으면 Daily_Data 최소)."""
     months: list[str] = []
@@ -173,18 +184,28 @@ def _earliest_available_date() -> date:
     return datetime.now(KST).date()
 
 
-def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key):
-    """1시간 캐시. 반환: (prev, curr, fetched_at_kst)."""
+def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key, today=None):
+    """캐시. 반환: (prev, curr, fetched_at_kst).
+
+    curr 월이 today 기준 과거(완료된) 월이면 API 호출을 생략하고 cum pkl/Daily만 사용.
+    """
     key = f"{curr_year}-{curr_month}-{prev_year}-{prev_month}"
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
+    if today is None:
+        today = datetime.now(KST).date()
+    is_past_view = (curr_year, curr_month) < (today.year, today.month)
+
     dest = load_dest()
-    raw_api = fetch_recent(service_key)
-    today_kst = datetime.now(KST).date()
-    curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
-    prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api, today=today_kst)
+    if is_past_view:
+        curr = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, curr_year, curr_month, raw_api=None, today=today)
+        prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=None, today=today)
+    else:
+        raw_api = fetch_recent(service_key)
+        curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
+        prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api, today=today)
     fetched_at = datetime.now(KST)
     result = (prev, curr, fetched_at)
     _cache_set(key, result)
@@ -339,8 +360,10 @@ def _red_days(year: int, month: int, max_day: int) -> list[int]:
         kr_hol = _h.KR(years=year)
     except Exception:
         kr_hol = {}
+    last_dom = calendar.monthrange(year, month)[1]
+    cap = min(max_day, last_dom)
     reds = []
-    for d in range(1, max_day + 1):
+    for d in range(1, cap + 1):
         dt = date(year, month, d)
         if dt.weekday() >= 5 or dt in kr_hol:
             reds.append(d)
@@ -447,7 +470,7 @@ def daily_combined_html(curr, prev, curr_label: str,
 
 # ---------- 메인 라우트 ----------
 @app.get("/", response_class=HTMLResponse)
-def index(request: Request, view: str | None = None):
+def index(request: Request, view: str | None = None, ym: str | None = None):
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
         return HTMLResponse(
@@ -458,23 +481,37 @@ def index(request: Request, view: str | None = None):
     today = datetime.now(KST).date()
     last_dom = calendar.monthrange(today.year, today.month)[1]
     is_month_end = (today.day == last_dom)
-
-    # 말일에는 다음달 미리보기를 default로 (?view=current로 이번달 강제 가능)
-    is_next_preview = is_month_end and view != "current"
-
     nxt_year, nxt_month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
 
-    if is_next_preview:
-        curr_year, curr_month = nxt_year, nxt_month
-        prev_year, prev_month = today.year, today.month
-    else:
-        curr_year, curr_month = today.year, today.month
+    # ?ym=YYYYMM 으로 과거 월 지정 (이번달 이상이면 무시 — 기본 동작 유지)
+    target_ym = None
+    if ym and len(ym) == 6 and ym.isdigit():
+        ty, tm = int(ym[:4]), int(ym[4:])
+        if 1 <= tm <= 12 and (ty, tm) < (today.year, today.month):
+            target_ym = (ty, tm)
+
+    if target_ym is not None:
+        is_past_view = True
+        is_next_preview = False
+        curr_year, curr_month = target_ym
         prev_year, prev_month = (
             (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
         )
+    else:
+        is_past_view = False
+        # 말일에는 다음달 미리보기를 default로 (?view=current로 이번달 강제 가능)
+        is_next_preview = is_month_end and view != "current"
+        if is_next_preview:
+            curr_year, curr_month = nxt_year, nxt_month
+            prev_year, prev_month = today.year, today.month
+        else:
+            curr_year, curr_month = today.year, today.month
+            prev_year, prev_month = (
+                (curr_year - 1, 12) if curr_month == 1 else (curr_year, curr_month - 1)
+            )
 
     prev, curr, fetched_at = fetch_months(
-        curr_year, curr_month, prev_year, prev_month, service_key
+        curr_year, curr_month, prev_year, prev_month, service_key, today=today
     )
     dest_df = load_dest()
     countries = sorted(dest_df["국가"].dropna().astype(str).str.strip().unique().tolist())
@@ -613,7 +650,14 @@ def index(request: Request, view: str | None = None):
         "index.html",
         {
             "is_next_preview": is_next_preview,
-            "is_month_end": is_month_end,
+            "is_month_end": is_month_end and not is_past_view,
+            "is_past_view": is_past_view,
+            "available_months": _available_months(today),
+            "viewing_ym": (
+                f"{target_ym[0]}{target_ym[1]:02d}" if target_ym
+                else f"{today.year}{today.month:02d}"
+            ),
+            "current_ym": f"{today.year}{today.month:02d}",
             "nxt_month": nxt_month,
             "today_month": today.month,
             "prev_label": prev_label,
