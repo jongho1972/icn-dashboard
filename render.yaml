@@ -19,3 +19,7 @@ services:
         sync: false
       - key: PYTHONUNBUFFERED
         value: "1"
+      # Python 3.14는 pyarrow wheel 미제공 (source build 시 cmake 실패).
+      # GH Actions와 동일 버전(3.12)으로 고정해 일관성·재현성 확보.
+      - key: PYTHON_VERSION
+        value: "3.12.7"
