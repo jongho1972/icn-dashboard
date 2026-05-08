@@ -14,7 +14,7 @@ KST = ZoneInfo("Asia/Seoul")
 import pandas as pd
 import requests
 
-API_URL = "http://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
+API_URL = "https://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
 
 
 def main():

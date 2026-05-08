@@ -699,6 +699,13 @@
             {% endfor %}
           </tbody>
         </table>
+        <div class="admin-token-row" style="margin-top:12px">
+          <label for="adminToken" style="display:block;font-size:12px;color:#475569;margin-bottom:4px">관리자 토큰</label>
+          <input id="adminToken" name="adminToken" type="password" autocomplete="off"
+                 required minlength="8"
+                 style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px"
+                 placeholder="ADMIN_TOKEN 입력">
+        </div>
         <div class="modal-actions">
           <div id="addResult" class="result"></div>
           <button type="button" class="modal-btn cancel" onclick="closeAddModal()">취소</button>
@@ -1135,13 +1142,21 @@
         showResult("모든 도착지의 국가와 지역을 입력하세요.", "err");
         return;
       }
+      const adminToken = (form.adminToken && form.adminToken.value || "").trim();
+      if (!adminToken) {
+        showResult("관리자 토큰을 입력하세요.", "err");
+        return;
+      }
       const btn = document.getElementById("addSubmit");
       btn.disabled = true; btn.textContent = "커밋 중...";
       showResult("GitHub 커밋 중...", "");
       try {
         const res = await fetch("/api/add-destinations", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Token": adminToken,
+          },
           body: JSON.stringify({entries}),
         });
         const data = await res.json();

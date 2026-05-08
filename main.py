@@ -237,15 +237,16 @@ def warm_cache_on_startup() -> None:
 def refresh_cache(x_refresh_token: str | None = Header(None)):
     """캐시 강제 갱신. cron(매일 10:00, 17:00 KST)이 호출.
 
-    REFRESH_TOKEN 환경변수가 설정돼 있으면 X-Refresh-Token 헤더 일치 필요.
+    REFRESH_TOKEN 환경변수 + X-Refresh-Token 헤더 일치 필수 (fail-closed).
     동기 함수로 정의 — FastAPI가 자동으로 threadpool에서 실행해 이벤트 루프 블록 방지.
     """
     expected = os.environ.get("REFRESH_TOKEN", "")
-    if expected:
-        if x_refresh_token is None or not hmac.compare_digest(
-            x_refresh_token.encode("utf-8"), expected.encode("utf-8")
-        ):
-            raise HTTPException(401, "invalid token")
+    if not expected:
+        raise HTTPException(503, "refresh disabled (REFRESH_TOKEN not configured)")
+    if x_refresh_token is None or not hmac.compare_digest(
+        x_refresh_token.encode("utf-8"), expected.encode("utf-8")
+    ):
+        raise HTTPException(401, "invalid token")
 
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
@@ -695,14 +696,18 @@ GH_BRANCH = "main"
 GH_API = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{GH_PATH}"
 
 
+# 항공편목적지.txt는 TSV 포맷 — 탭/개행이 들어가면 라인 자체가 깨져 매핑이 무너짐.
+_DEST_FIELD_PATTERN = r"^[^\t\r\n]+$"
+
+
 class DestEntry(BaseModel):
-    destination: str = Field(..., min_length=1)
-    country: str = Field(..., min_length=1)
-    region: str = Field(..., min_length=1)
+    destination: str = Field(..., min_length=2, max_length=40, pattern=_DEST_FIELD_PATTERN)
+    country: str = Field(..., min_length=1, max_length=20, pattern=_DEST_FIELD_PATTERN)
+    region: str = Field(..., min_length=1, max_length=20, pattern=_DEST_FIELD_PATTERN)
 
 
 class AddDestRequest(BaseModel):
-    entries: list[DestEntry] = Field(..., min_length=1)
+    entries: list[DestEntry] = Field(..., min_length=1, max_length=50)
 
 
 def _github_append(entries: list[DestEntry], token: str) -> dict:
@@ -770,7 +775,19 @@ async def destinations_health():
 
 
 @app.post("/api/add-destinations")
-def add_destinations(req: AddDestRequest):
+def add_destinations(
+    req: AddDestRequest,
+    x_admin_token: str | None = Header(None, alias="X-Admin-Token"),
+):
+    # ADMIN_TOKEN 검증 — fail-closed. GitHub 저장소 커밋을 트리거하므로 무인증 호출 차단.
+    expected = os.environ.get("ADMIN_TOKEN", "")
+    if not expected:
+        raise HTTPException(503, "admin endpoint disabled (ADMIN_TOKEN not configured)")
+    if x_admin_token is None or not hmac.compare_digest(
+        x_admin_token.encode("utf-8"), expected.encode("utf-8")
+    ):
+        raise HTTPException(401, "invalid token")
+
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise HTTPException(

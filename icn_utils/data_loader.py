@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 
 logger = logging.getLogger("icn_dashboard.data_loader")
 
-API_URL = "http://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
+API_URL = "https://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
 
 
 def fetch_api_day(yyyymmdd, service_key):
