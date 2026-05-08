@@ -24,15 +24,15 @@ ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
 
 DASHBOARD_URL = "https://jhawk-flight-schedule.onrender.com"
-MAILING_LIST_PATH = ROOT / "mailing_list.txt"
 
 
 def load_recipients() -> list[str]:
-    """mailing_list.txt 우선, 없으면 MAIL_RECIPIENTS env (콤마/세미콜론 구분)."""
-    if MAILING_LIST_PATH.exists():
-        text = MAILING_LIST_PATH.read_text(encoding="utf-8")
-    else:
-        text = os.environ.get("MAIL_RECIPIENTS", "")
+    """MAIL_RECIPIENTS 환경변수에서 수신자 목록 로드 (콤마·세미콜론·줄바꿈 구분).
+
+    이전엔 mailing_list.txt 파일을 우선 읽었으나, 워크플로우가 매번 덮어쓰는 패턴이라
+    .gitignore 한 줄만 잘못 건드려도 PII 누설 위험이 있어 환경변수로 단일화함.
+    """
+    text = os.environ.get("MAIL_RECIPIENTS", "")
     seen: set[str] = set()
     parts: list[str] = []
     for chunk in text.replace(";", "\n").replace(",", "\n").splitlines():
@@ -106,7 +106,7 @@ def main() -> int:
     else:
         recipients = load_recipients()
         if not recipients:
-            print("수신자 목록이 비어있습니다 (mailing_list.txt / MAIL_RECIPIENTS)", file=sys.stderr)
+            print("수신자 목록이 비어있습니다 (MAIL_RECIPIENTS 환경변수 설정 필요)", file=sys.stderr)
             return 1
 
     send(args.image, recipients, today)

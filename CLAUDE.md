@@ -125,7 +125,7 @@ uvicorn main:app --reload --port 8000
   - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`). 토큰 미설정/불일치 시 `/api/refresh`는 fail-closed (503/401)로 거부.
 - **GitHub Actions** `.github/workflows/daily-mailer.yml` (대시보드 일일 메일링)
   - 스케줄: `30 8 * * *` UTC = 매일 17:30 KST (GH Actions 큐 지연 흡수 위해 18:00 → 17:30 앞당김. refresh-cache 17:00 KST 30분 후 마진)
-  - 동작: Playwright로 대시보드 캡처 → `send_daily_email.py`로 `mailing_list.txt` 수신자에게 SMTP 발송
+  - 동작: Playwright로 대시보드 캡처 → `send_daily_email.py`로 `MAIL_RECIPIENTS` 환경변수 수신자에게 SMTP 발송 (콤마·세미콜론·줄바꿈 구분)
   - `workflow_dispatch` 입력 `test_recipient` 지원 (입력 시 해당 1명에게만 발송)
   - 실패 시(`if: failure()`) `jongho1972@gmail.com`로 자동 통지 (Gmail SMTP)
   - Secrets: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_RECIPIENTS`, `DASHBOARD_PASSWORD`

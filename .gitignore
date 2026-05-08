@@ -5,7 +5,6 @@ __pycache__/
 .venv/
 .env
 .claude/
-mailing_list.txt
 .playwright-mcp/
 icn-*.png
 
