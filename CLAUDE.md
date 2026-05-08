@@ -117,8 +117,10 @@ uvicorn main:app --reload --port 8000
   - Push 충돌 시 `pull --rebase` 후 재시도 (최대 3회). 실패 시 `if: failure()`에서 jongho1972@gmail.com 통지
   - Secrets: `INCHEON_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
-- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지)
-  - 스케줄: 14분마다 `GET /healthz` 호출 (Render 무료 플랜 슬립 한계 ~15분 직전 마진). `/healthz`는 가벼운 응답이라 컨테이너 CPU 비용 최소.
+- **cron-job.org** (Render 슬립 방지) — 외부 무료 cron 서비스로 이전
+  - 14분 간격 `GET https://jhawk-flight-schedule.onrender.com/healthz` (Render 슬립 한계 ~15분 직전 마진)
+  - 이전 사유: private 저장소 전환 후 GH Actions 무료 한도(2,000분/월) 초과 위험. GH-hosted runner는 매 실행당 최소 ~1분 청구되어 14분 간격 ping이 ~3,000분/월 소비
+  - GH Actions `.github/workflows/keep-alive.yml`은 비상 수동 ping용으로 `workflow_dispatch`만 유지
   - 페이로드 캐시 워밍은 `refresh-cache.yml`이 매일 10:00/17:00 KST에 별도 처리. 컨테이너 재시작 시 lifespan에서 디스크 pickle 즉시 로드.
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
   - 스케줄: `0 1,8 * * *` UTC = 매일 10:00 / 17:00 KST

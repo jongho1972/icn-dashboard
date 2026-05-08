@@ -1,10 +1,9 @@
-name: Keep Render alive
+name: Keep Render alive (수동 트리거 전용 — schedule 비활성화)
 
+# private 저장소 전환 후 GH Actions 무료 한도 (2,000분/월) 초과 위험으로 schedule 제거.
+# keep-alive는 cron-job.org 외부 서비스로 이전 (URL: /healthz, 14분 간격).
+# 본 워크플로우는 cron-job.org 장애 시 비상 수동 ping용으로만 유지.
 on:
-  schedule:
-    # 14분마다 — Render 무료 플랜 슬립 한계(~15분) 직전 마진 1분
-    # /healthz는 가벼운 응답이라 컨테이너 CPU 비용도 최소화
-    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
