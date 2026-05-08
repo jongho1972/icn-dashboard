@@ -15,7 +15,9 @@ import os
 import pickle
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -53,7 +55,14 @@ DAILY_DIR = BASE / "Daily_Data"
 FINAL_DIR = BASE / "Final_Data"
 DEST_PATH = BASE / "항공편목적지.txt"
 
-app = FastAPI(title="인천공항 국제선 출발편 현황")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # FastAPI lifespan — @app.on_event("startup")는 0.120 이후 제거 예정이라 마이그레이션
+    warm_cache_on_startup()
+    yield
+
+
+app = FastAPI(title="인천공항 국제선 출발편 현황", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 templates = Jinja2Templates(directory=str(BASE / "templates"))
 
@@ -86,7 +95,9 @@ def _cache_set(key: str, val):
     with _CACHE_LOCK:
         _CACHE[key] = (time.time(), val)
         snapshot = dict(_CACHE)
-    _save_disk_cache(snapshot)
+    # 디스크 pickle 직렬화는 수십 MB 단위라 응답 경로에서 동기 실행하면 첫 사용자가 비용을 떠안음.
+    # 메모리 캐시 갱신은 위에서 끝났으니 디스크 저장은 fire-and-forget.
+    threading.Thread(target=_save_disk_cache, args=(snapshot,), daemon=True).start()
 
 
 def _cache_invalidate(key: str) -> None:
@@ -94,7 +105,12 @@ def _cache_invalidate(key: str) -> None:
     with _CACHE_LOCK:
         _CACHE.pop(key, None)
         snapshot = dict(_CACHE)
-    _save_disk_cache(snapshot)
+    threading.Thread(target=_save_disk_cache, args=(snapshot,), daemon=True).start()
+
+
+# 캐시 미스 동시 요청 합치기 — 같은 키에 대한 fetch가 중복 실행되지 않도록 inflight 잠금
+_INFLIGHT: dict[str, threading.Event] = {}
+_INFLIGHT_LOCK = threading.Lock()
 
 
 def _load_disk_cache() -> None:
@@ -188,34 +204,55 @@ def fetch_months(curr_year, curr_month, prev_year, prev_month, service_key, toda
     """캐시. 반환: (prev, curr, fetched_at_kst).
 
     curr 월이 today 기준 과거(완료된) 월이면 API 호출을 생략하고 cum pkl/Daily만 사용.
+    캐시 미스 동시 요청은 코얼레싱 — 같은 키에 대한 fetch는 1회만 실행되고 나머지는 결과 대기.
     """
     key = f"{curr_year}-{curr_month}-{prev_year}-{prev_month}"
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
-    if today is None:
-        today = datetime.now(KST).date()
-    is_past_view = (curr_year, curr_month) < (today.year, today.month)
+    # inflight 잠금 — 다른 워커가 이미 같은 키를 fetch 중이면 결과를 기다린다
+    with _INFLIGHT_LOCK:
+        ev = _INFLIGHT.get(key)
+        is_owner = ev is None
+        if is_owner:
+            ev = threading.Event()
+            _INFLIGHT[key] = ev
 
-    dest = load_dest()
-    if is_past_view:
-        curr = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, curr_year, curr_month, raw_api=None, today=today)
-        prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=None, today=today)
-    else:
-        raw_api = fetch_recent(service_key)
-        curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
-        prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api, today=today)
-    fetched_at = datetime.now(KST)
-    result = (prev, curr, fetched_at)
-    _cache_set(key, result)
-    return result
+    if not is_owner:
+        ev.wait(timeout=120)
+        cached = _cache_get(key)
+        if cached is not None:
+            return cached
+        # 대기했는데도 결과가 없으면 (타임아웃/owner 실패) 본인이 다시 시도
+        is_owner = True
+
+    try:
+        if today is None:
+            today = datetime.now(KST).date()
+        is_past_view = (curr_year, curr_month) < (today.year, today.month)
+
+        dest = load_dest()
+        if is_past_view:
+            curr = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, curr_year, curr_month, raw_api=None, today=today)
+            prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=None, today=today)
+        else:
+            raw_api = fetch_recent(service_key)
+            curr = build_current_month(str(DAILY_DIR), dest, service_key, curr_year, curr_month, raw_api=raw_api)
+            prev = build_previous_month(str(FINAL_DIR), str(DAILY_DIR), dest, prev_year, prev_month, raw_api=raw_api, today=today)
+        fetched_at = datetime.now(KST)
+        result = (prev, curr, fetched_at)
+        _cache_set(key, result)
+        return result
+    finally:
+        with _INFLIGHT_LOCK:
+            _INFLIGHT.pop(key, None)
+        ev.set()
 
 
-@app.on_event("startup")
 def warm_cache_on_startup() -> None:
     """앱 기동 직후 디스크 캐시 → 메모리 로드. 비어있거나 만료면 fetch.
-    실패해도 부팅을 막지 않는다 (요청 시 재시도)."""
+    실패해도 부팅을 막지 않는다 (요청 시 재시도). lifespan에서 호출."""
     _load_disk_cache()
 
     service_key = os.environ.get("INCHEON_API_KEY", "")
@@ -374,7 +411,8 @@ def _red_days(year: int, month: int, max_day: int) -> list[int]:
 WEEKDAY_KR = ["월", "화", "수", "목", "금", "토", "일"]
 
 
-def _kr_holidays(year):
+@lru_cache(maxsize=8)
+def _kr_holidays(year: int):
     try:
         import holidays as _h
         return _h.KR(years=year)
@@ -815,7 +853,32 @@ def add_destinations(
 
 @app.get("/healthz")
 async def healthz():
+    """Liveness probe — 프로세스가 살아있는지만 확인. keep-alive cron이 호출."""
     return {"ok": True, "time": datetime.now(KST).isoformat()}
+
+
+@app.get("/readyz")
+async def readyz():
+    """Readiness probe — 환경변수와 캐시 신선도까지 검사.
+
+    keep-alive와 별개로 캐시·키 상태를 알고 싶을 때 호출.
+    """
+    has_key = bool(os.environ.get("INCHEON_API_KEY"))
+    cache_keys = list(_CACHE.keys())
+    fresh = False
+    if cache_keys:
+        with _CACHE_LOCK:
+            ts, _ = _CACHE[cache_keys[0]]
+        fresh = (time.time() - ts) < _TTL_SECONDS
+    ok = has_key and fresh
+    payload = {
+        "ok": ok,
+        "has_key": has_key,
+        "cache_fresh": fresh,
+        "cache_entries": len(cache_keys),
+        "time": datetime.now(KST).isoformat(),
+    }
+    return JSONResponse(payload, status_code=200 if ok else 503)
 
 
 # ---------- Raw 데이터 Excel 다운로드 ----------
@@ -823,13 +886,13 @@ MAX_EXPORT_DAYS = 366  # 한번에 최대 1년 (윤년 포함)
 
 
 @app.get("/api/export-raw")
-async def export_raw(start: str, end: str):
-    """start/end (YYYYMMDD) 기간의 Raw 데이터를 Excel로 다운로드.
+def export_raw(start: str, end: str):
+    """start/end (YYYYMMDD) 기간의 Raw 데이터를 CSV로 청크 스트리밍.
 
-    Daily_Data pkl → 가공(process_raw) → 날짜 필터 → .xlsx 반환.
+    동기 함수 — pandas/pickle은 모두 블로킹이라 async def였으면 이벤트 루프 점유. 동기로
+    선언하면 FastAPI가 자동으로 threadpool에서 실행하고, 큰 응답은 청크로 yield해 메모리
+    피크를 낮춥니다.
     """
-    from io import BytesIO
-
     try:
         start_dt = datetime.strptime(start, "%Y%m%d")
         end_dt = datetime.strptime(end, "%Y%m%d")
@@ -906,19 +969,25 @@ async def export_raw(start: str, end: str):
         if dt_col in df.columns:
             df[dt_col] = df[dt_col].dt.strftime("%Y-%m-%d %-H:%M")
 
-    # CSV (UTF-8 BOM) — Excel로 열어도 한글 깨지지 않음, 매우 빠름
-    buf = BytesIO()
-    df.to_csv(buf, index=False, encoding="utf-8-sig")
-    size = buf.tell()
-    buf.seek(0)
+    # 청크 스트리밍 — 전체 CSV를 한번에 메모리에 모으면 1년 분에서 수십~수백 MB 점유.
+    # Content-Length를 미리 계산할 수 없으므로 chunked transfer-encoding 사용.
+    CHUNK_ROWS = 10_000
+
+    def gen():
+        # UTF-8 BOM — Excel이 한글 CSV를 자동 인식하도록 시작 바이트로 송출
+        yield b"\xef\xbb\xbf"
+        # 헤더 행
+        yield df.iloc[0:0].to_csv(index=False).encode("utf-8")
+        for start_idx in range(0, len(df), CHUNK_ROWS):
+            chunk = df.iloc[start_idx:start_idx + CHUNK_ROWS]
+            yield chunk.to_csv(index=False, header=False).encode("utf-8")
 
     fname = f"icn_flights_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.csv"
     return StreamingResponse(
-        buf,
+        gen(),
         media_type="text/csv; charset=utf-8-sig",
         headers={
             "Content-Disposition": f'attachment; filename="{fname}"',
-            "Content-Length": str(size),
             "Cache-Control": "no-store",
         },
     )

@@ -4,32 +4,49 @@ import logging
 import os
 import requests
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger("icn_dashboard.data_loader")
 
+KST = ZoneInfo("Asia/Seoul")
 API_URL = "https://apis.data.go.kr/B551177/StatusOfPassengerFlightsDeOdp/getPassengerDeparturesDeOdp"
 
 
 def fetch_api_day(yyyymmdd, service_key):
-    """하루치 API 호출. 실패 시 빈 DataFrame."""
+    """하루치 API 호출. 실패 시 빈 DataFrame.
+
+    예외/오류 응답은 로깅 후 빈 DF 반환 — 부분 실패가 데이터 결손으로 누적되지 않도록
+    호출자가 누락 일자를 감지할 수 있게 경고 로그를 남깁니다.
+    """
     params = {
         "serviceKey": service_key, "pageNo": "1", "numOfRows": "2000",
         "type": "json", "from_time": "0000", "to_time": "2400", "searchday": yyyymmdd,
     }
     try:
         r = requests.get(API_URL, params=params, timeout=20)
-        items = r.json()["response"]["body"]["items"]
+        r.raise_for_status()
+        body = r.json().get("response", {}).get("body", {})
+        result_code = (
+            r.json().get("response", {}).get("header", {}).get("resultCode", "")
+        )
+        if result_code and result_code != "00":
+            logger.warning("API non-success for %s: resultCode=%s", yyyymmdd, result_code)
+            return pd.DataFrame()
+        items = body.get("items") or []
         return pd.DataFrame(items) if items else pd.DataFrame()
-    except Exception:
+    except Exception as exc:
+        logger.warning("fetch_api_day failed for %s: %r", yyyymmdd, exc)
         return pd.DataFrame()
 
 
 def fetch_recent(service_key, days_back=3, days_forward=6):
-    """오늘 기준 D-3 ~ D+6 (10일) API 호출 결과 통합."""
-    base = date.today() - timedelta(days=days_back)
+    """오늘(KST) 기준 D-3 ~ D+6 (10일) API 호출 결과 통합. 병렬 호출로 latency 단축."""
+    base = datetime.now(KST).date() - timedelta(days=days_back)
     days = pd.date_range(base, periods=days_back + 1 + days_forward).strftime("%Y%m%d").tolist()
-    dfs = [fetch_api_day(d, service_key) for d in days]
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        dfs = list(ex.map(lambda d: fetch_api_day(d, service_key), days))
     dfs = [d for d in dfs if len(d) > 0]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
@@ -85,29 +102,29 @@ def process_raw(raw_df, dest_df):
     if len(raw_df) == 0:
         return pd.DataFrame()
     df = raw_df.copy()
-    df["scheduleDateTime"] = df["scheduleDateTime"].map(lambda x: datetime.strptime(x, "%Y%m%d%H%M"))
-    df["estimatedDateTime"] = df["estimatedDateTime"].map(lambda x: datetime.strptime(x, "%Y%m%d%H%M"))
-    df["YYYYMMDD"] = df["estimatedDateTime"].map(lambda x: datetime.strptime(x.strftime("%Y-%m-%d"), "%Y-%m-%d"))
+    df["scheduleDateTime"] = pd.to_datetime(df["scheduleDateTime"], format="%Y%m%d%H%M")
+    df["estimatedDateTime"] = pd.to_datetime(df["estimatedDateTime"], format="%Y%m%d%H%M")
+    df["YYYYMMDD"] = df["estimatedDateTime"].dt.normalize()
     df["YYYY"] = df["estimatedDateTime"].dt.year
     df["MM"] = df["estimatedDateTime"].dt.month
     df["DD"] = df["estimatedDateTime"].dt.day
     df["출발시각"] = df["estimatedDateTime"].dt.hour
     df["출발분"] = df["estimatedDateTime"].dt.minute
-    df["Flight_Key"] = df["flightId"] + df["YYYYMMDD"].apply(lambda x: x.strftime("%Y-%m-%d"))
-    df["터미널"] = df["terminalid"].apply(lambda x: "T1" if x in ["P01", "P02"] else ("T2" if x == "P03" else x))
+    df["Flight_Key"] = df["flightId"] + df["YYYYMMDD"].dt.strftime("%Y-%m-%d")
+    df["터미널"] = df["terminalid"].map({"P01": "T1", "P02": "T1", "P03": "T2"}).fillna(df["terminalid"])
     df["목적지"] = (df["airport"] + "(" + df["airportCode"] + ")").str.replace(" ", "")
     df = df.rename(columns={
         "flightId": "운항편명", "airline": "항공사", "chkinrange": "체크인 카운터",
         "gatenumber": "탑승구", "codeshare": "CODESHARE", "masterflightid": "Master_Flight",
     })
 
-    def _prior(x):
-        if x["remark"] == "출발": return 1
-        g = x["탑승구"]
-        if pd.notna(g) and g != "": return 2
-        return 3
-
-    df["priority"] = df.apply(_prior, axis=1)
+    # priority 벡터화 — apply(axis=1)는 Python 레벨 row 호출이라 만 단위 행에서 비용 큼.
+    # 1=출발 완료 / 2=탑승구 배정됨 / 3=그 외
+    gate = df["탑승구"]
+    priority = pd.Series(3, index=df.index)
+    priority[gate.notna() & (gate != "")] = 2
+    priority[df["remark"] == "출발"] = 1
+    df["priority"] = priority
     # fId가 API 명세상 스케줄별 unique key — Flight_Key(편명+일자)는 자정 넘기는 편의 estimatedDateTime
     # 변경 시 같은 운항이 두 키로 분리될 수 있어 fid 우선. 누락 시에만 Flight_Key fallback.
     if "fid" in df.columns:
