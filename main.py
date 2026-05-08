@@ -307,11 +307,11 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
                     cls = ("dash " + t1last.strip()).strip()
                     parts.append(f'<td class="{cls}">—</td>')
                 elif v > 0:
-                    parts.append(f'<td class="pos{t1last}">+{v:.1%}</td>')
+                    parts.append(f'<td class="pos{t1last}">▲ {v:.1%}</td>')
                 elif v < 0:
-                    parts.append(f'<td class="neg{t1last}">−{abs(v):.1%}</td>')
+                    parts.append(f'<td class="neg{t1last}">▼ {abs(v):.1%}</td>')
                 else:
-                    parts.append(f'<td class="{t1last.strip()}">{v:+.1%}</td>')
+                    parts.append(f'<td class="{t1last.strip()}">― 0.0%</td>')
             else:
                 if pd.isna(v) or v == 0:
                     cls = ("dash " + t1last.strip()).strip()
@@ -331,11 +331,11 @@ def _trend_html(c, p) -> str:
     r = pct(c, p)
     if math.isnan(r):
         return ""
-    color = "#1F6FEB" if r > 0 else ("#B42318" if r < 0 else "#64748B")
-    sign = "+" if r > 0 else ("−" if r < 0 else "±")
-    return (f' <span style="color:{color};font-weight:500;'
+    color = "#8C0023" if r > 0 else ("#2A52BE" if r < 0 else "#64748B")
+    arrow = "▲" if r > 0 else ("▼" if r < 0 else "―")
+    return (f' <span style="color:{color};font-weight:600;'
             f'font-variant-numeric:tabular-nums;">'
-            f'(전월비 {sign}{abs(r):.1%})</span>')
+            f'(전월비 {arrow} {abs(r):.1%})</span>')
 
 
 def _dow_diff_html(curr_cnt: int, avg: float | None) -> str:
@@ -344,13 +344,12 @@ def _dow_diff_html(curr_cnt: int, avg: float | None) -> str:
         return ""
     diff = curr_cnt - avg
     r = diff / avg
-    color = "#1F6FEB" if diff > 0 else ("#B42318" if diff < 0 else "#64748B")
-    sign_n = "+" if diff > 0 else ("−" if diff < 0 else "±")
-    sign_p = "+" if r > 0 else ("−" if r < 0 else "±")
+    color = "#8C0023" if diff > 0 else ("#2A52BE" if diff < 0 else "#64748B")
+    arrow = "▲" if diff > 0 else ("▼" if diff < 0 else "―")
     return (f', 전월 동요일 평균 대비 '
-            f'<span style="color:{color};font-weight:500;'
+            f'<span style="color:{color};font-weight:600;'
             f'font-variant-numeric:tabular-nums;">'
-            f'{sign_n}{abs(diff):.0f}편({sign_p}{abs(r):.1%})</span>')
+            f'{arrow} {abs(diff):.0f}편({arrow} {abs(r):.1%})</span>')
 
 
 # ---------- 주말·공휴일 계산 ----------
@@ -397,10 +396,10 @@ def _ratio_td(curr_cnt: int, avg: float | None, extra_cls: str = "") -> str:
         return f'<td class="{base}"></td>' if base else '<td></td>'
     r = (curr_cnt - avg) / avg
     if r > 0:
-        return f'<td class="{(base + " pos").strip()}">+{r:.1%}</td>'
+        return f'<td class="{(base + " pos").strip()}">▲ {r:.1%}</td>'
     if r < 0:
-        return f'<td class="{(base + " neg").strip()}">−{abs(r):.1%}</td>'
-    return f'<td class="{base}">{r:+.1%}</td>' if base else f'<td>{r:+.1%}</td>'
+        return f'<td class="{(base + " neg").strip()}">▼ {abs(r):.1%}</td>'
+    return f'<td class="{base}">― 0.0%</td>' if base else '<td>― 0.0%</td>'
 
 
 def daily_combined_html(curr, prev, curr_label: str,
