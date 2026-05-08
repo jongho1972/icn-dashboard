@@ -45,17 +45,31 @@
       document.head.appendChild(style);
       var overlay = document.createElement('div');
       overlay.id = 'pw-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', 'pw-title');
+      overlay.setAttribute('aria-describedby', 'pw-desc');
       overlay.innerHTML =
         '<div id="pw-box">' +
-          '<h2>접근 제한</h2>' +
-          '<p>비밀번호를 입력하세요</p>' +
-          '<div><input id="pw-input" type="password" maxlength="10" autocomplete="off" autofocus>' +
+          '<h2 id="pw-title">접근 제한</h2>' +
+          '<p id="pw-desc">비밀번호를 입력하세요</p>' +
+          '<div>' +
+          '<label for="pw-input" class="visually-hidden" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">비밀번호</label>' +
+          '<input id="pw-input" type="password" maxlength="10" autocomplete="off" autofocus aria-describedby="pw-err" aria-required="true">' +
           '<button id="pw-btn" type="button">확인</button></div>' +
-          '<div id="pw-err">비밀번호가 올바르지 않습니다</div>' +
+          '<div id="pw-err" role="alert" aria-live="polite">비밀번호가 올바르지 않습니다</div>' +
         '</div>';
       document.body.appendChild(overlay);
       var input = overlay.querySelector('#pw-input');
       var err = overlay.querySelector('#pw-err');
+      // Focus trap — Tab이 오버레이 밖으로 빠지지 않도록 input ↔ button 사이 순환
+      var btnEl = overlay.querySelector('#pw-btn');
+      overlay.addEventListener('keydown', function(e) {
+        if (e.key !== 'Tab') return;
+        var active = document.activeElement;
+        if (e.shiftKey && active === input) { e.preventDefault(); btnEl.focus(); }
+        else if (!e.shiftKey && active === btnEl) { e.preventDefault(); input.focus(); }
+      });
       function unlock() {
         try { sessionStorage.setItem(AUTH_KEY, '1'); } catch (e) {}
         if (gateStyle) gateStyle.remove();
@@ -323,6 +337,17 @@
       font-feature-settings: "tnum" 1;
     }
 
+    /* D+1 요약 — 페이지 핵심 KPI라 카드 형태로 시각 위계 격상 */
+    .summary.tomorrow {
+      background: var(--blue-025);
+      border-left: 4px solid var(--navy-900);
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 1.25rem 0 1.75rem 0;
+      font-size: 16px;
+    }
+    .summary.tomorrow strong { font-size: 19px; font-weight: 700; }
+
     /* 섹션 주석(게이트별 기준 등) */
     .section-note {
       color: var(--slate-500); font-size: 13px; line-height: 1.5;
@@ -363,7 +388,7 @@
     }
     table.icn thead th.t1-group { background: var(--blue-025); color: var(--navy-900); }
     table.icn thead th.t2-group { background: var(--orange-025); color: var(--orange-600); }
-    table.icn thead th.tot-group { background: var(--slate-50); color: var(--slate-700); }
+    table.icn thead th.tot-group { background: var(--slate-050); color: var(--slate-700); }
     table.icn colgroup col.col-label { width: 96px; }
     table.icn td { text-align: right; }
     table.icn td.label {
@@ -405,6 +430,17 @@
     table.icn tr.future-row td.label {
       background: #FFF8E1; color: #78350F; font-weight: 600;
     }
+    /* future-row 안의 빨간 일자(주말·공휴일)는 노란 배경에서 대비가 약하므로 더 짙게 */
+    table.icn tr.future-row td.red-day { color: #991B1B; font-weight: 700; }
+
+    /* 일자별 표 thead sticky — 긴 표 스크롤 시에도 헤더가 화면 상단에 고정 */
+    table.icn.daily-t thead th {
+      position: sticky; top: 0; z-index: 1;
+      background: #fff;
+    }
+    table.icn.daily-t thead th.t1-group { background: var(--blue-025); }
+    table.icn.daily-t thead th.t2-group { background: var(--orange-025); }
+    table.icn.daily-t thead th.tot-group { background: var(--slate-050); }
 
     /* 각주 (페이지 하단) — 세로 스택 */
     footer.footnote {
@@ -449,15 +485,25 @@
     .chart-legend b { color: #1a1a1a; }
 
     /* 차트 컨테이너 */
-    .chart { width: 100%; height: 260px; margin-top: 8px; }
+    .chart { width: 100%; height: 300px; margin-top: 8px; }
 
-    /* 테이블 가로 스크롤 래퍼 */
+    /* 테이블 가로 스크롤 래퍼 — 우측 fade로 "스크롤 가능" affordance */
     .table-wrap {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       margin: 4px 0 0 0;
+      position: relative;
     }
     .table-wrap table.icn { margin: 0; }
+    @media (max-width: 640px) {
+      .table-wrap::after {
+        content: "";
+        position: absolute;
+        top: 0; right: 0; bottom: 0; width: 24px;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.95));
+        pointer-events: none;
+      }
+    }
 
     /* 숫자·% 셀 줄바꿈 금지 */
     table.icn td, table.icn th { white-space: nowrap; }
@@ -553,7 +599,7 @@
     <h3>일자별</h3>
 
     {% if tomorrow_summary_html %}
-    <div class="summary" style="margin-bottom: 1.75rem;">{{ tomorrow_summary_html | safe }}</div>
+    <div class="summary tomorrow">{{ tomorrow_summary_html | safe }}</div>
     {% endif %}
 
     <div id="chart_t1" class="chart"></div>

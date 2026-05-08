@@ -321,12 +321,12 @@ def df_to_html(df: pd.DataFrame, prev_label: str, curr_label: str, total_row_idx
         '</colgroup>',
         '<thead>',
         '<tr>',
-        '<th rowspan="2">구분</th>',
-        '<th colspan="3" class="t1-group t1-last">T1</th>',
-        '<th colspan="3" class="t2-group">T2</th>',
+        '<th rowspan="2" scope="col">구분</th>',
+        '<th colspan="3" scope="colgroup" class="t1-group t1-last">T1</th>',
+        '<th colspan="3" scope="colgroup" class="t2-group">T2</th>',
         '</tr><tr>',
-        f'<th>{prev_label}</th><th>{curr_label}</th><th class="t1-last">전월비</th>',
-        f'<th>{prev_label}</th><th>{curr_label}</th><th>전월비</th>',
+        f'<th scope="col">{prev_label}</th><th scope="col">{curr_label}</th><th scope="col" class="t1-last">전월비</th>',
+        f'<th scope="col">{prev_label}</th><th scope="col">{curr_label}</th><th scope="col">전월비</th>',
         '</tr></thead><tbody>',
     ]
     cols = list(df.columns)
@@ -465,16 +465,16 @@ def daily_combined_html(curr, prev, curr_label: str,
         '<colgroup><col><col><col><col><col><col><col><col></colgroup>',
         '<thead>',
         '<tr>',
-        '<th rowspan="2">날짜</th>',
-        '<th rowspan="2">요일</th>',
-        '<th colspan="2" class="t1-group t1-last">T1</th>',
-        '<th colspan="2" class="t2-group t2-last">T2</th>',
-        '<th colspan="2" class="tot-group">T1+T2</th>',
+        '<th rowspan="2" scope="col">날짜</th>',
+        '<th rowspan="2" scope="col">요일</th>',
+        '<th colspan="2" scope="colgroup" class="t1-group t1-last">T1</th>',
+        '<th colspan="2" scope="colgroup" class="t2-group t2-last">T2</th>',
+        '<th colspan="2" scope="colgroup" class="tot-group">T1+T2</th>',
         '</tr>',
         '<tr>',
-        f'<th>{curr_label}</th><th class="t1-last">전월동요일비</th>',
-        f'<th>{curr_label}</th><th class="t2-last">전월동요일비</th>',
-        f'<th>{curr_label}</th><th>전월동요일비</th>',
+        f'<th scope="col">{curr_label}</th><th scope="col" class="t1-last" title="전월의 동일 요일 평균 대비 비율">전월동요일비</th>',
+        f'<th scope="col">{curr_label}</th><th scope="col" class="t2-last" title="전월의 동일 요일 평균 대비 비율">전월동요일비</th>',
+        f'<th scope="col">{curr_label}</th><th scope="col" title="전월의 동일 요일 평균 대비 비율">전월동요일비</th>',
         '</tr>',
         '</thead><tbody>',
     ]
@@ -605,8 +605,9 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
         t2_tmr = int(((curr["터미널"] == "T2") & (curr["DD"] == tmr_dd)).sum())
         tomorrow_summary_html = (
             f'<b>D+1 항공편수 ({curr_month}/{tmr_dd}, {WEEKDAY_KR[tmr_wd]})</b><br>'
-            f'• <b>T1</b> : {t1_tmr:,}편{_dow_diff_html(t1_tmr, avg_t1)}<br>'
-            f'• <b>T2</b> : {t2_tmr:,}편{_dow_diff_html(t2_tmr, avg_t2)}'
+            f'• <b>T1</b> : <strong>{t1_tmr:,}편</strong>{_dow_diff_html(t1_tmr, avg_t1)}<br>'
+            f'• <b>T2</b> : <strong>{t2_tmr:,}편</strong>{_dow_diff_html(t2_tmr, avg_t2)}<br>'
+            f'• <b>합계</b> : <strong>{t1_tmr + t2_tmr:,}편</strong>'
         )
 
     # 각 섹션 표
@@ -614,10 +615,10 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
     total_html = df_to_html(df_total, prev_label, curr_label)
 
     df_airline = rows_to_df(agg_airline(prev_same, curr), prev_label, curr_label)
-    airline_html = df_to_html(df_airline, prev_label, curr_label)
+    airline_html = df_to_html(df_airline, prev_label, curr_label, total_row_idx=0)
 
     df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
-    region_html = df_to_html(df_region, prev_label, curr_label)
+    region_html = df_to_html(df_region, prev_label, curr_label, total_row_idx=0)
 
     # 게이트별: D-1 기준 (운항정보 마감)
     d_minus_1 = today - timedelta(days=1)

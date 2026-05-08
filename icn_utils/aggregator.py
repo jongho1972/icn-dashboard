@@ -107,11 +107,19 @@ def agg_airline(prev, curr):
             "T1_prev": _cnt(prev, "T1", 항공사그룹=a), "T1_curr": _cnt(curr, "T1", 항공사그룹=a),
             "T2_prev": _cnt(prev, "T2", 항공사그룹=a), "T2_curr": _cnt(curr, "T2", 항공사그룹=a),
         })
-    return rows
+    # 소계 행 — 첫 행에 위치 (게이트 표와 동일 패턴, total_row_idx=0)
+    total = {
+        "구분": "소계",
+        "T1_prev": sum(r["T1_prev"] for r in rows),
+        "T1_curr": sum(r["T1_curr"] for r in rows),
+        "T2_prev": sum(r["T2_prev"] for r in rows),
+        "T2_curr": sum(r["T2_curr"] for r in rows),
+    }
+    return [total] + rows
 
 
 def agg_region(prev, curr):
-    """이번달(curr) T1+T2 편수 내림차순으로 정렬."""
+    """이번달(curr) T1+T2 편수 내림차순으로 정렬. 소계 행은 첫 행에 위치."""
     rows = []
     for r in REGIONS:
         rows.append({
@@ -120,7 +128,14 @@ def agg_region(prev, curr):
             "T2_prev": _cnt(prev, "T2", 지역=r), "T2_curr": _cnt(curr, "T2", 지역=r),
         })
     rows.sort(key=lambda x: x["T1_curr"] + x["T2_curr"], reverse=True)
-    return rows
+    total = {
+        "구분": "소계",
+        "T1_prev": sum(r["T1_prev"] for r in rows),
+        "T1_curr": sum(r["T1_curr"] for r in rows),
+        "T2_prev": sum(r["T2_prev"] for r in rows),
+        "T2_curr": sum(r["T2_curr"] for r in rows),
+    }
+    return [total] + rows
 
 
 def agg_gate(prev, curr):
