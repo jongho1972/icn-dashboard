@@ -31,6 +31,28 @@ jobs:
           pip install python-dotenv playwright
           playwright install --with-deps chromium
 
+      - name: Refresh cache (inline, 큐 지연 안전 마진)
+        # 17:00 KST refresh-cache 워크플로우가 GH Actions 큐 지연으로 늦게 실행되면
+        # 17:30 mailer가 미갱신 캐시를 캡처할 위험이 있어, mailer가 직접 한 번 더 호출.
+        # refresh 실패해도 메일은 계속 발송 (스테일 캐시라도 보내는 게 미발송보다 낫다).
+        env:
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+        run: |
+          if [ -z "$REFRESH_TOKEN" ]; then
+            echo "WARN: REFRESH_TOKEN 미설정 — refresh skip, 스테일 캐시 사용 가능"
+            exit 0
+          fi
+          set +e
+          curl -fsS --max-time 180 --retry 2 --retry-delay 30 \
+            -X POST \
+            -H "X-Refresh-Token: $REFRESH_TOKEN" \
+            https://jhawk-flight-schedule.onrender.com/api/refresh
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "WARN: refresh 실패 (exit=$rc) — mailer는 스테일 캐시로 계속 진행"
+          fi
+          exit 0
+
       - name: Capture dashboard
         env:
           DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
