@@ -777,6 +777,35 @@
     const commonLayout = (title, color, yMin, yMax, prevAvg) => {
       const shapes = [];
       const annotations = [];
+      // 주말·공휴일 영역 음영 띠 — 패턴 인식 강화 (색상 단독 의존 보완)
+      redDays.forEach(d => {
+        shapes.push({
+          type: "rect",
+          x0: d - 0.5, x1: d + 0.5,
+          y0: yMin, y1: yMax,
+          fillcolor: "rgba(239,68,68,0.05)",
+          line: { width: 0 },
+          xref: "x", yref: "y",
+          layer: "below",
+        });
+      });
+      // Today 라인 + D+1 라인 분리 — 두 시점의 의미를 명확히 표시
+      if (chartData.today_day && chartData.today_day >= 1 && chartData.today_day <= chartLastDay) {
+        shapes.push({
+          type: "line",
+          x0: chartData.today_day, x1: chartData.today_day,
+          y0: yMin, y1: yMax,
+          line: { color: "#475569", width: 1.4 },
+          xref: "x", yref: "y",
+        });
+        annotations.push({
+          x: chartData.today_day, y: yMax,
+          text: "Today", showarrow: false,
+          font: { size: 10, color: "#475569", weight: 700 },
+          xanchor: "right", yanchor: "top",
+          xshift: -4, yshift: -2,
+        });
+      }
       if (chartData.today_day && chartData.today_day < chartLastDay) {
         const tomorrowDay = chartData.today_day + 1;
         shapes.push({
@@ -802,16 +831,17 @@
           line: { color: "#94A3B8", width: 1.2 },
           xref: "x", yref: "y",
         });
+        // 라벨을 차트 내부 좌측 상단에 배치 — y축 바깥 배치 시 한글 라벨이 잘릴 위험 회피
         annotations.push({
-          x: 0, xref: "paper",
+          x: 0.5, xref: "x",
           y: prevAvg, yref: "y",
           text: `전월 평균 ${Math.round(prevAvg).toLocaleString()}`,
           showarrow: false,
-          font: { size: 9, color: "#64748B", weight: 600 },
-          xanchor: "right", yanchor: "middle",
-          xshift: -6,
-          align: "right",
-          bgcolor: "rgba(255,255,255,0.95)",
+          font: { size: 10, color: "#64748B", weight: 600 },
+          xanchor: "left", yanchor: "bottom",
+          xshift: 4, yshift: 2,
+          align: "left",
+          bgcolor: "rgba(255,255,255,0.92)",
           borderpad: 2,
         });
       }
@@ -836,7 +866,7 @@
           zeroline: false,
           range: [yMin, yMax],
         },
-        margin: { l: 82, r: 20, t: 40, b: 36 },
+        margin: { l: 64, r: 20, t: 40, b: 36 },
         showlegend: false,
         plot_bgcolor: "#fff", paper_bgcolor: "#fff",
         shapes: shapes,
@@ -846,12 +876,21 @@
       };
     };
 
-    const makeTraces = (curr, color) => ([
+    // 이번달 실선+마커, 전월 점선 (CLAUDE.md 사양). 전월은 같은 색 + 낮은 채도/투명도.
+    const makeTraces = (curr, prev, color) => ([
+      {
+        x: days, y: prev, mode: "lines",
+        line: { color: color, width: 1.4, dash: "dot" },
+        opacity: 0.55,
+        hovertemplate: "전월 %{y:,}편<extra></extra>",
+        name: "전월",
+      },
       {
         x: days, y: curr, mode: "lines+markers",
         line: { color: color, width: 2.2 },
-        marker: { color: color, size: 6 },
-        hovertemplate: "%{y:,}편<extra></extra>",
+        marker: { color: color, size: 5 },
+        hovertemplate: "이번달 %{y:,}편<extra></extra>",
+        name: "이번달",
       },
     ]);
 
@@ -871,12 +910,12 @@
     const t2PrevAvg = avg(chartData.series.T2_prev);
 
     Plotly.newPlot("chart_t1",
-      makeTraces(chartData.series.T1_curr, "#1F6FEB"),
+      makeTraces(chartData.series.T1_curr, chartData.series.T1_prev, "#1F6FEB"),
       commonLayout("T1", "#1F6FEB", yMin, yMax, t1PrevAvg),
       { displayModeBar: false, responsive: true });
 
     Plotly.newPlot("chart_t2",
-      makeTraces(chartData.series.T2_curr, "#C26420"),
+      makeTraces(chartData.series.T2_curr, chartData.series.T2_prev, "#C26420"),
       commonLayout("T2", "#C26420", yMin, yMax, t2PrevAvg),
       { displayModeBar: false, responsive: true });
 
