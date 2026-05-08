@@ -2,8 +2,9 @@ name: Refresh dashboard cache
 
 on:
   schedule:
-    # 매일 10:00 KST (= 01:00 UTC), 17:00 KST (= 08:00 UTC)
-    - cron: '0 1,8 * * *'
+    # cron 예약 22:00 UTC (=07:00 KST 다음날), 06:00 UTC (=15:00 KST)
+    # 큐 지연(오전 +3h, 오후 +2h) 흡수 → 실제 ~10:00 KST, ~17:00 KST 도착
+    - cron: '0 22,6 * * *'
   workflow_dispatch:
 
 jobs:

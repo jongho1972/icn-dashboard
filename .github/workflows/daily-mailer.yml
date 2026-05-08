@@ -2,8 +2,8 @@ name: Daily mailer
 
 on:
   schedule:
-    # 매일 17:30 KST = 08:30 UTC
-    - cron: '30 8 * * *'
+    # cron 예약 15:30 KST = 06:30 UTC (큐 지연 +2h 감안, 실제 ~17:30 KST 도착)
+    - cron: '30 6 * * *'
   workflow_dispatch:
     inputs:
       test_recipient:

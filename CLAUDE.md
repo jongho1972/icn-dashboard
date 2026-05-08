@@ -101,8 +101,10 @@ uvicorn main:app --reload --port 8000
 
 ## 자동화
 
+> **GH Actions cron 큐 지연 보정**: 무료/private 환경에서 cron 예약이 평균 +2h(오전 refresh는 +3h) 지연 발사됨. 모든 스케줄은 의도한 KST 도착 시각보다 2~3시간 일찍 예약되어 있음. 실제 도착 시각이 어긋나면 최근 `gh run list`로 평균 지연을 재측정해 cron을 재조정할 것.
+
 - **GitHub Actions** `.github/workflows/daily-backfill.yml` (Daily_Data 수집)
-  - 스케줄: `30 7 * * *` UTC = 매일 16:30 KST (refresh-cache 17:00 KST 30분 전 마진)
+  - cron 예약: `30 5 * * *` UTC = 14:30 KST → 큐 지연 흡수 후 실제 ~16:30 KST 도착
   - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
@@ -110,10 +112,10 @@ uvicorn main:app --reload --port 8000
   - 14분 간격 `GET /healthz`. private 저장소 전환으로 GH Actions 무료 한도(2,000분/월) 초과 위험 → 외부 무료 cron으로 이전
   - 일일 4건 자동화(backfill·refresh×2·mailer)도 컨테이너 워밍에 기여하므로 cron-job.org 단기 장애는 큰 영향 없음
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
-  - 스케줄: `0 1,8 * * *` UTC = 매일 10:00 / 17:00 KST
+  - cron 예약: `0 22,6 * * *` UTC = 07:00 KST(다음날) / 15:00 KST → 큐 지연 흡수 후 실제 ~10:00 / ~17:00 KST 도착
   - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
 - **GitHub Actions** `.github/workflows/daily-mailer.yml` (대시보드 일일 메일링)
-  - 스케줄: `30 8 * * *` UTC = 매일 17:30 KST (GH Actions 큐 지연 흡수 위해 18:00 → 17:30 앞당김. refresh-cache 17:00 KST 30분 후 마진)
+  - cron 예약: `30 6 * * *` UTC = 15:30 KST → 큐 지연 흡수 후 실제 ~17:30 KST 도착
   - 동작: Playwright로 대시보드 캡처 → `send_daily_email.py`로 `mailing_list.txt` 수신자에게 SMTP 발송
   - `workflow_dispatch` 입력 `test_recipient` 지원 (입력 시 해당 1명에게만 발송)
   - 실패 시(`if: failure()`) `jongho1972@gmail.com`로 자동 통지 (Gmail SMTP)
