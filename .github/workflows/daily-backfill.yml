@@ -32,7 +32,7 @@ jobs:
           INCHEON_API_KEY: ${{ secrets.INCHEON_API_KEY }}
         run: python3 backfill.py
 
-      - name: Commit and push if changed
+      - name: Commit and push if changed (with rebase retry)
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -44,6 +44,36 @@ jobs:
           fi
           git diff --cached --stat
           git commit -m "data: daily backfill $(date -u +%Y%m%d)"
-          git push origin main
-          echo "RESULT: PUSHED"
-          ls Daily_Data/ | wc -l
+          # 동시 push 충돌 대비 — pull --rebase 후 push 재시도 최대 3회
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "RESULT: PUSHED (attempt $attempt)"
+              ls Daily_Data/ | wc -l
+              exit 0
+            fi
+            echo "Push failed (attempt $attempt) — pulling and retrying..."
+            git pull --rebase origin main
+            sleep $((attempt * 10))
+          done
+          echo "RESULT: PUSH_FAILED"
+          exit 1
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import os, smtplib, ssl
+          from email.message import EmailMessage
+          msg = EmailMessage()
+          msg["From"] = os.environ["GMAIL_USER"]
+          msg["To"] = "jongho1972@gmail.com"
+          msg["Subject"] = "[ICN backfill] 실패 알림"
+          msg.set_content("Daily backfill 워크플로우가 실패했습니다. GitHub Actions 로그를 확인하세요.")
+          ctx = ssl.create_default_context()
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as s:
+              s.login(os.environ["GMAIL_USER"], os.environ["GMAIL_APP_PASSWORD"].replace(" ", ""))
+              s.send_message(msg)
+          PY

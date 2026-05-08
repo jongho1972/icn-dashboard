@@ -3,8 +3,19 @@ services:
     name: jhawk-flight-schedule
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # workers=1 — 메모리 캐시는 워커 간 공유되지 않으므로 의도적으로 단일 워커 유지.
+    # 디스크 pickle이 워커 간/재시작 간 캐시 동기화 메커니즘 역할.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 65
     plan: free
+    healthCheckPath: /healthz
     envVars:
       - key: INCHEON_API_KEY
         sync: false
+      - key: REFRESH_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"

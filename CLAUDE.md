@@ -7,6 +7,11 @@
 - 비번: `0708`, sessionStorage 키: `icn_dashboard_auth_ok` (신라 사이트 `shilla_auth_ok`와 키 분리)
 - 게이트는 `visibility:hidden` 방식 — 레이아웃 유지로 Plotly 차트가 컨테이너 너비 0이 아닌 정상 너비(1120px)로 렌더 보장
 - 세션 복원 감지(`navType==='back_forward' && !sameOriginRef`) 시 인증 무효화
+- 비번 게이트는 "약한 마찰" 수준 — 클라이언트 평문 노출. 서버측 민감 라우트는 별도 토큰 검증
+- 모달은 `role="dialog" aria-modal="true"` + focus trap + `aria-live` 에러 알림 적용
+- 서버측 보호된 엔드포인트:
+  - `POST /api/refresh` — `X-Refresh-Token` (REFRESH_TOKEN 환경변수). 미설정 시 503 fail-closed
+  - `POST /api/add-destinations` — `X-Admin-Token` (ADMIN_TOKEN 환경변수) + DestEntry 입력 검증(탭/개행 차단). GitHub 저장소 커밋을 트리거하므로 무인증 호출 차단
 
 ## 이미지 캡처(클립보드 복사)
 - html2canvas `scale: 4` + 다단 다운샘플링 → `TARGET_WIDTH: 1200px` PNG
@@ -41,10 +46,13 @@ uvicorn main:app --reload --port 8000
 ## 데이터 수급 흐름
 
 - **이번달**: 최근 10일치(D-3~D+6) API 실시간 + `Daily_Data/` 과거 일별 pkl 병합 → 가공
+  - API 호출은 `ThreadPoolExecutor(max_workers=5)` 병렬 — 10일 순차 호출 대비 2~3배 빠름
 - **지난달**: `Final_Data/flight_schedule_YYYYMM_cum.pkl` 우선, 없으면 `Daily_Data` 재가공
-- **매일 자동 수집**: Claude Code 스케줄 트리거 → `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → Render 자동 재배포
-- **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 디스크에서 즉시 로드.
-- **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출. 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
+- **매일 자동 수집**: GitHub Actions cron → `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → Render 자동 재배포
+- **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 lifespan에서 디스크 → 메모리 로드.
+  - 디스크 pickle 직렬화는 `_cache_set`에서 백그라운드 스레드로 분리 — 첫 사용자가 직렬화 비용 부담 없음
+  - 캐시 미스 동시 요청 코얼레싱(`_INFLIGHT`) — 같은 키 fetch가 중복 실행되지 않음
+- **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출 (REFRESH_TOKEN 필수). 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
 
 ## 집계 규칙
 
@@ -74,16 +82,16 @@ uvicorn main:app --reload --port 8000
 ## 화면 구성 (위→아래 순서)
 
 1. **일자별** 섹션
-   - **D+1일 예정 편수 요약** (`.summary` 텍스트): `M/D(요일) 항공편수` + T1/T2 편수 + 전월 동요일 평균 대비 `+N편(+N%)` 색상 span (파랑=증가·빨강=감소)
-   - **차트 2개** (T1 파랑, T2 주황, 세로 분리): 이번달 실선+마커 + 전월 점선 + 전월 평균 가로선(라벨은 y축 **바깥** 좌측에 배치) + Today 수직선(슬레이트) + 주말·공휴일 x축 빨강
-   - **일자별 표**: 행=일자, 컬럼=`날짜·요일·T1[전월·이번달·전월동요일비]·T2[전월·이번달·전월동요일비]`. **D+1 ~ 월말** 노란 배경(`future-row`, 오늘은 하이라이트 제외), 토·일·공휴일 빨강
-     - **전월동요일비**: 같은 요일 평균 대비 비율 (예: 4월 7일=월 → 3월 모든 월요일 평균과 비교)
+   - **D+1일 예정 편수 카드** (`.summary.tomorrow`, navy 좌측 보더 + blue-025 배경): `M/D(요일) 항공편수` + T1/T2/합계 편수 (큰 굵은 숫자) + 전월 동요일 평균 대비 `+N편(+N%)` 색상 span
+   - **차트 2개** (T1 파랑, T2 주황, 세로 분리): 이번달 실선+마커(`width:2.2`) + 전월 점선(`dash:"dot", opacity:0.55`) + 전월 평균 가로선(라벨은 차트 **내부** 좌측 상단 — 한글 라벨 잘림 방지) + Today 수직선(slate-700) + D+1 점선 + 주말·공휴일 x축 빨강 + 주말 영역 옅은 빨강 음영(`rgba(239,68,68,0.05)`)
+   - **일자별 표**: 행=일자, 컬럼=`날짜·요일·T1[이번달·전월동요일비]·T2[이번달·전월동요일비]·T1+T2[이번달·전월동요일비]`. **D+1 ~ 월말** 노란 배경(`future-row`, 오늘은 하이라이트 제외), 토·일·공휴일 빨강. `thead` sticky로 긴 표 스크롤 시 헤더 고정
+     - **전월동요일비**: 같은 요일 평균 대비 비율 (예: 4월 7일=월 → 3월 모든 월요일 평균과 비교). 헤더에 `title` 툴팁 부여
 2. **월누적** 섹션
    - 요약 텍스트: `T1+T2 기준 N 편 (전월비 ±N.N%) · 일평균 N 편`
    - 전체 표 (T1·T2 × 월누적·일평균)
-3. **항공사별** 표 (T1·T2 그룹)
-4. **도착지별** 표 (T1·T2 그룹)
-5. **탑승구별** 표 (T1·T2 그룹) + section-note
+3. **항공사별** 표 (T1·T2 그룹) — 첫 행 소계 강조 (total-row)
+4. **도착지별** 표 (T1·T2 그룹) — 첫 행 소계 강조 (total-row)
+5. **탑승구별** 표 (T1·T2 그룹) + section-note — 첫 행 소계 강조
 6. **각주**: 데이터 출처 / 집계 제외 기준 / 탑승구 분류 기준
 
 ## Raw 데이터 CSV 다운로드 (`/api/export-raw`)
@@ -95,22 +103,26 @@ uvicorn main:app --reload --port 8000
 
 ## 배포
 
-- **Render (무료 플랜)**: GitHub 푸시 시 자동 재빌드
+- **Render (무료 플랜)**: GitHub 푸시 시 자동 재빌드. `render.yaml`이 환경변수·healthcheck·worker 수를 선언
 - URL: <https://jhawk-flight-schedule.onrender.com>
-- Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (Render Dashboard → Environment)
+- Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN`, `ADMIN_TOKEN` (Render Dashboard → Environment)
+- Health endpoints: `/healthz` (liveness — keep-alive cron이 호출), `/readyz` (readiness — 캐시 신선도 검사)
+- API URL은 HTTPS (`https://apis.data.go.kr/...`) — 평문 호출 시 service_key 노출 위험
 
 ## 자동화
 
 - **GitHub Actions** `.github/workflows/daily-backfill.yml` (Daily_Data 수집)
   - 스케줄: `30 7 * * *` UTC = 매일 16:30 KST (refresh-cache 17:00 KST 30분 전 마진)
   - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
-  - Secret: `INCHEON_API_KEY` (GitHub repo secret)
+  - Push 충돌 시 `pull --rebase` 후 재시도 (최대 3회). 실패 시 `if: failure()`에서 jongho1972@gmail.com 통지
+  - Secrets: `INCHEON_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
-- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지 + 페이로드 캐시 워밍)
-  - 스케줄: 10분마다 `GET /` 호출 (`--max-time 300` — 콜드 빌드 1~3분 흡수). 메인 페이지 페이로드 캐시까지 워밍해 컨테이너 재시작 후 첫 사용자가 빌드 비용 떠안는 일 방지
+- **GitHub Actions** `.github/workflows/keep-alive.yml` (Render 슬립 방지)
+  - 스케줄: 14분마다 `GET /healthz` 호출 (Render 무료 플랜 슬립 한계 ~15분 직전 마진). `/healthz`는 가벼운 응답이라 컨테이너 CPU 비용 최소.
+  - 페이로드 캐시 워밍은 `refresh-cache.yml`이 매일 10:00/17:00 KST에 별도 처리. 컨테이너 재시작 시 lifespan에서 디스크 pickle 즉시 로드.
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
   - 스케줄: `0 1,8 * * *` UTC = 매일 10:00 / 17:00 KST
-  - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
+  - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`). 토큰 미설정/불일치 시 `/api/refresh`는 fail-closed (503/401)로 거부.
 - **GitHub Actions** `.github/workflows/daily-mailer.yml` (대시보드 일일 메일링)
   - 스케줄: `30 8 * * *` UTC = 매일 17:30 KST (GH Actions 큐 지연 흡수 위해 18:00 → 17:30 앞당김. refresh-cache 17:00 KST 30분 후 마진)
   - 동작: Playwright로 대시보드 캡처 → `send_daily_email.py`로 `mailing_list.txt` 수신자에게 SMTP 발송

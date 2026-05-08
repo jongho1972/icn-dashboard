@@ -2,14 +2,16 @@ name: Keep Render alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 10분마다 (Render 무료 플랜 슬립 방지)
+    # 14분마다 — Render 무료 플랜 슬립 한계(~15분) 직전 마진 1분
+    # /healthz는 가벼운 응답이라 컨테이너 CPU 비용도 최소화
+    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Warm payload cache via /
+      - name: Liveness probe via /healthz
         run: |
-          curl -fsS -o /dev/null --max-time 300 --retry 2 --retry-delay 30 \
-            https://jhawk-flight-schedule.onrender.com/
+          curl -fsS --max-time 300 --retry 2 --retry-delay 30 \
+            https://jhawk-flight-schedule.onrender.com/healthz
