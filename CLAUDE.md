@@ -1,6 +1,6 @@
 # ICN_Dashboard
 
-인천공항 국제선 출발편 현황 월간 비교 대시보드 (FastAPI + Plotly.js → Render)
+인천공항 국제선 출발 항공편수 월간 비교 대시보드 (FastAPI + Plotly.js → Render)
 
 ## 접근 제어
 - `templates/index.html` 상단 인라인 비번 게이트 (`<style id="auth-gate">`)

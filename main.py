@@ -1,4 +1,4 @@
-"""인천공항 국제선 출발편 현황 대시보드 (FastAPI + Jinja2).
+"""인천공항 국제선 출발 항공편수 대시보드 (FastAPI + Jinja2).
 
 기존 Streamlit 앱을 Render 배포 가능하도록 포팅.
 집계 로직은 icn_utils/ 그대로 재사용.
@@ -53,7 +53,7 @@ DAILY_DIR = BASE / "Daily_Data"
 FINAL_DIR = BASE / "Final_Data"
 DEST_PATH = BASE / "항공편목적지.txt"
 
-app = FastAPI(title="인천공항 국제선 출발편 현황")
+app = FastAPI(title="인천공항 국제선 출발 항공편수")
 app.add_middleware(GZipMiddleware, minimum_size=500)
 templates = Jinja2Templates(directory=str(BASE / "templates"))
 
