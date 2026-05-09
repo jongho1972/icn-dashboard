@@ -338,20 +338,6 @@ def _trend_html(c, p) -> str:
             f'(전월비 {arrow} {abs(r):.1%})</span>')
 
 
-def _dow_diff_html(curr_cnt: int, avg: float | None) -> str:
-    """D+1일 T1/T2 요약용: '전월 동요일 평균 대비 +xx편(+xx.x%)' span."""
-    if not avg or avg <= 0:
-        return ""
-    diff = curr_cnt - avg
-    r = diff / avg
-    color = "#8C0023" if diff > 0 else ("#2A52BE" if diff < 0 else "#64748B")
-    arrow = "▲" if diff > 0 else ("▼" if diff < 0 else "―")
-    return (f', 전월 동요일 평균 대비 '
-            f'<span style="color:{color};font-weight:600;'
-            f'font-variant-numeric:tabular-nums;">'
-            f'{arrow} {abs(diff):.0f}편({arrow} {abs(r):.1%})</span>')
-
-
 # ---------- 주말·공휴일 계산 ----------
 def _red_days(year: int, month: int, max_day: int) -> list[int]:
     try:
@@ -552,22 +538,40 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
     # D+1일 요약 (내일 예정 편수 + 전월 동요일 평균 대비)
     # 다음달 미리보기 모드에서도 today+1=다음달 1일이 curr_month에 속해 자연스럽게 표시됨
     tomorrow = today + timedelta(days=1)
-    tomorrow_summary_html = None
+    tomorrow_kpi = None
     if (tomorrow.year == curr_year and tomorrow.month == curr_month
             and tomorrow.day <= max_day):
         tmr_dd = tomorrow.day
         tmr_wd = tomorrow.weekday()
         prev_t1 = prev[prev["터미널"] == "T1"]
         prev_t2 = prev[prev["터미널"] == "T2"]
+        prev_tot = prev[prev["터미널"].isin(["T1", "T2"])]
         avg_t1 = _prev_dow_avg(prev_t1, prev_year, prev_month).get(tmr_wd)
         avg_t2 = _prev_dow_avg(prev_t2, prev_year, prev_month).get(tmr_wd)
+        avg_tot = _prev_dow_avg(prev_tot, prev_year, prev_month).get(tmr_wd)
         t1_tmr = int(((curr["터미널"] == "T1") & (curr["DD"] == tmr_dd)).sum())
         t2_tmr = int(((curr["터미널"] == "T2") & (curr["DD"] == tmr_dd)).sum())
-        tomorrow_summary_html = (
-            f'<b>D+1 항공편수 ({curr_month}/{tmr_dd}, {WEEKDAY_KR[tmr_wd]})</b><br>'
-            f'• <b>T1</b> : {t1_tmr:,}편{_dow_diff_html(t1_tmr, avg_t1)}<br>'
-            f'• <b>T2</b> : {t2_tmr:,}편{_dow_diff_html(t2_tmr, avg_t2)}'
-        )
+        tot_tmr = t1_tmr + t2_tmr
+
+        def _delta_pct(c, a):
+            if not a or a <= 0:
+                return None
+            return (c - a) / a * 100.0
+
+        tomorrow_kpi = {
+            "date_label": f"{tomorrow.year}-{tomorrow.month:02d}-{tomorrow.day:02d}",
+            "weekday": WEEKDAY_KR[tmr_wd],
+            "total": tot_tmr,
+            "t1": t1_tmr,
+            "t2": t2_tmr,
+            "delta_total": _delta_pct(tot_tmr, avg_tot),
+            "delta_t1": _delta_pct(t1_tmr, avg_t1),
+            "delta_t2": _delta_pct(t2_tmr, avg_t2),
+            "avg_total": int(round(avg_tot)) if avg_tot else None,
+            "avg_t1": int(round(avg_t1)) if avg_t1 else None,
+            "avg_t2": int(round(avg_t2)) if avg_t2 else None,
+            "prev_label": prev_label,
+        }
 
     # 각 섹션 표
     df_total = rows_to_df(agg_total(prev_same, curr, max_day), prev_label, curr_label)
@@ -671,7 +675,7 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
             "gate_html": gate_html,
             "gate_note": gate_note,
             "daily_html": daily_html,
-            "tomorrow_summary_html": tomorrow_summary_html,
+            "tomorrow_kpi": tomorrow_kpi,
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용

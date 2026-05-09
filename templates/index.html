@@ -316,6 +316,90 @@
       margin: 2.25rem 0 0.75rem 0;
     }
 
+    /* ===== 핵심 요약 KPI 카드 (D+1 예정 편수) ===== */
+    .summary-hero {
+      position: relative;
+      background: #FFFFFF;
+      color: #1A1A1A;
+      border: 1px solid var(--slate-100);
+      border-left: 4px solid var(--navy-900);
+      border-radius: 8px;
+      padding: 22px 26px 20px;
+      margin: 1.5rem 0 1.5rem;
+    }
+    .summary-hero-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--slate-100);
+    }
+    .summary-hero-date {
+      font-size: 20px; font-weight: 700; color: var(--navy-900);
+      letter-spacing: -0.025em;
+      font-variant-numeric: tabular-nums;
+    }
+    .summary-hero-tag {
+      font-size: 11.5px; font-weight: 600;
+      padding: 3px 10px; border-radius: 4px;
+      background: var(--navy-900); color: #fff;
+      letter-spacing: 0.3px;
+    }
+    .summary-hero-rows { display: grid; gap: 10px; }
+    .summary-row {
+      display: grid; grid-template-columns: 130px 1fr auto;
+      align-items: baseline; gap: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .summary-row .lbl {
+      font-size: 13px; font-weight: 600; color: var(--slate-500);
+      letter-spacing: -0.01em;
+    }
+    .summary-row .val {
+      font-size: 28px; font-weight: 700; color: var(--navy-900);
+      letter-spacing: -0.025em;
+    }
+    .summary-row .val .unit {
+      font-size: 14px; font-weight: 500; margin-left: 3px;
+      color: var(--slate-500);
+    }
+    .summary-row.total .val { font-size: 36px; color: var(--crimson); }
+    .summary-row .mtd {
+      font-size: 12px; color: var(--slate-500);
+      white-space: nowrap;
+    }
+    .summary-row .mtd b {
+      color: var(--slate-700); font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .summary-row .delta {
+      display: inline-flex; align-items: baseline; gap: 3px;
+      margin-left: 10px;
+      font-size: 14px; font-weight: 600;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      vertical-align: baseline;
+    }
+    .summary-row.total .delta { font-size: 16px; }
+    .summary-row .delta.pos { color: var(--crimson); }
+    .summary-row .delta.neg { color: var(--delta-blue); }
+    .summary-row .delta.flat { color: var(--slate-400); }
+    .summary-row .delta .arrow { font-size: 0.85em; line-height: 1; }
+    .summary-hero-foot {
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid var(--slate-100);
+      font-size: 12px; color: var(--slate-500);
+      letter-spacing: -0.005em;
+    }
+    @media (max-width: 640px) {
+      .summary-hero { padding: 18px 18px 16px; }
+      .summary-hero-date { font-size: 17px; }
+      .summary-row { grid-template-columns: 100px 1fr; }
+      .summary-row .mtd { grid-column: 2 / -1; padding-left: 0; }
+      .summary-row .val { font-size: 24px; }
+      .summary-row.total .val { font-size: 30px; }
+    }
+
     /* 요약 텍스트 */
     .summary {
       color: var(--navy-900); font-size: 17px; font-weight: 500;
@@ -554,8 +638,46 @@
 
     <h3>일자별</h3>
 
-    {% if tomorrow_summary_html %}
-    <div class="summary" style="margin-bottom: 1.75rem;">{{ tomorrow_summary_html | safe }}</div>
+    {% if tomorrow_kpi %}
+    {% macro flight_delta(pct) -%}
+      {%- if pct is not none -%}
+        {%- set dcls = 'pos' if pct > 0.05 else ('neg' if pct < -0.05 else 'flat') -%}
+        {%- set darr = '▲' if pct > 0.05 else ('▼' if pct < -0.05 else '―') -%}
+        <span class="delta {{ dcls }}" title="전월 동요일 평균 대비"><span class="arrow">{{ darr }}</span>{{ '{:.1f}'.format(pct|abs) }}%</span>
+      {%- endif -%}
+    {%- endmacro %}
+    <div class="summary-hero" role="region" aria-label="D+1 예정 항공편수 요약">
+      <div class="summary-hero-head">
+        <div class="summary-hero-date">{{ tomorrow_kpi.date_label }} ({{ tomorrow_kpi.weekday }})</div>
+        <div class="summary-hero-tag">내일 예정</div>
+      </div>
+      <div class="summary-hero-rows">
+        <div class="summary-row total">
+          <span class="lbl">전체 항공편수</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.total) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_total) }}</span>
+          <span class="mtd">
+            {% if tomorrow_kpi.avg_total %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_total) }}</b>편){% endif %}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="lbl">T1 항공편수</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.t1) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t1) }}</span>
+          <span class="mtd">
+            {% if tomorrow_kpi.avg_t1 %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_t1) }}</b>편){% endif %}
+          </span>
+        </div>
+        <div class="summary-row">
+          <span class="lbl">T2 항공편수</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.t2) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t2) }}</span>
+          <span class="mtd">
+            {% if tomorrow_kpi.avg_t2 %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_t2) }}</b>편){% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="summary-hero-foot">
+        ※ 결항·회항·코드쉐어 제외 · 전월 동요일 평균 대비
+      </div>
+    </div>
     {% endif %}
 
     <div id="chart_t1" class="chart"></div>
