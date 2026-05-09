@@ -435,6 +435,7 @@ def daily_combined_html(curr, prev, curr_label: str,
         cls_list = []
         if today_day is not None and d == today_day + 1:
             cls_list.append("future-row")
+            cls_list.append("tomorrow-row")
         tr_cls = f' class="{" ".join(cls_list)}"' if cls_list else ""
         date_cls = ' class="label red-day"' if is_red else ' class="label"'
         wd_cls = ' class="dow red-day"' if is_red else ' class="dow"'
