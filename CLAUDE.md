@@ -54,7 +54,7 @@ uvicorn main:app --reload --port 8000
 - 지난달·이번달 동일기간 비교 (양쪽 모두 `DD <= 이번달_max_day` 필터)
 - **dedup 키**: process_raw 내부에서 `fid`(API 명세상 unique) 우선, 누락 시 `Flight_Key`(편명+일자) fallback. 자정 넘기는 편의 estimatedDateTime 변경으로 같은 운항이 두 Flight_Key로 분리되는 케이스를 방지
 
-> **Final_Data cum pkl 재생성 시 주의**: 외부 노트북에서 cum pkl을 다시 만들 때 `typeOfFlight`, `fid` 컬럼을 결과에 **반드시 포함**시킬 것. 현재 cum pkl에는 두 필드가 누락되어 있어 prepare()는 fallback 경로로 동작 중. 재생성 시점에 포함시키면 강한 필터·강한 dedup이 자동 적용됨.
+> **Final_Data cum pkl 재생성**: `build_final_cum.py YYYYMM` 또는 monthly-cum 워크플로우(매월 1·2일 자동) 사용. process_raw가 `typeOfFlight`·`fid` 컬럼을 보존해 강한 필터·강한 dedup이 자동 적용된다. 외부 노트북 수동 작업 불필요.
 
 **게이트 분류 (T1·T2 공용):**
 - **동편**: 1 ~ 24 또는 251 ~ 299
@@ -114,6 +114,11 @@ uvicorn main:app --reload --port 8000
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
   - cron 예약: `0 22,6 * * *` UTC = 07:00 KST(다음날) / 15:00 KST → 큐 지연 흡수 후 실제 ~10:00 / ~17:00 KST 도착
   - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
+- **GitHub Actions** `.github/workflows/monthly-cum.yml` (Final_Data cum pkl 자동 생성)
+  - cron 예약: `0 18 2 * *` UTC = 3일 03:00 KST → 큐 지연 후 실제 ~05:00 KST 도착
+  - 동작: `build_final_cum.py` 실행 → 직전 월 Daily_Data를 process_raw로 가공 → `Final_Data/flight_schedule_YYYYMM_cum.pkl` 저장 → push
+  - 부분 cum 방지: 말일까지 DD가 채워지지 않으면 exit 1 + SMTP 통지
+  - 수동 재생성: `gh workflow run monthly-cum.yml -f yyyymm=202604` 또는 로컬에서 `python3 build_final_cum.py 202604`
 - **GitHub Actions** `.github/workflows/daily-mailer.yml` (대시보드 일일 메일링)
   - cron 예약: `30 6 * * *` UTC = 15:30 KST → 큐 지연 흡수 후 실제 ~17:30 KST 도착
   - 동작: Playwright로 대시보드 캡처 → `send_daily_email.py`로 `mailing_list.txt` 수신자에게 SMTP 발송

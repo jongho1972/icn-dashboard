@@ -1,0 +1,82 @@
+name: Monthly cum pkl
+
+on:
+  schedule:
+    # 매월 3일 03:00 KST = 2일 18:00 UTC. 큐 지연 +2h 흡수 후 ~05:00 KST 도착
+    # 1·2일은 prev month 말일 데이터가 안전하게 누적되는 시간
+    - cron: '0 18 2 * *'
+  workflow_dispatch:
+    inputs:
+      yyyymm:
+        description: 'YYYYMM (생략 시 prev month 자동)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  cum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Build cum pkl
+        run: python3 build_final_cum.py ${{ inputs.yyyymm }}
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Final_Data/
+          if git diff --cached --quiet; then
+            echo "RESULT: NO_CHANGES"
+            exit 0
+          fi
+          git diff --cached --stat
+          git commit -m "data: monthly cum $(date -u +%Y%m%d)"
+          git push origin main || (git pull --rebase origin main && git push origin main)
+          echo "RESULT: PUSHED"
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_TO: jongho1972@gmail.com
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import os, smtplib
+          from email.mime.text import MIMEText
+          from email.utils import formataddr
+          user = os.environ.get("GMAIL_USER")
+          pw_raw = os.environ.get("GMAIL_APP_PASSWORD")
+          if not user or not pw_raw:
+              print("[notify] secrets missing; skip"); raise SystemExit(0)
+          body = (
+              "인천공항 국제선 항공편수 monthly-cum 워크플로우가 실패했습니다.\n\n"
+              f"워크플로우 로그: {os.environ['RUN_URL']}\n"
+          )
+          msg = MIMEText(body, "plain", "utf-8")
+          msg["Subject"] = "[실패] 인천공항 국제선 항공편수 monthly-cum"
+          msg["From"] = formataddr(("인천공항점(마케팅)", user))
+          msg["To"] = os.environ["NOTIFY_TO"]
+          pw = "".join(pw_raw.split())
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+              s.login(user, pw)
+              s.send_message(msg)
+          print("Failure notification sent to", os.environ["NOTIFY_TO"])
+          PY
