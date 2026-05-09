@@ -241,11 +241,12 @@ def refresh_cache(x_refresh_token: str | None = Header(None)):
     동기 함수로 정의 — FastAPI가 자동으로 threadpool에서 실행해 이벤트 루프 블록 방지.
     """
     expected = os.environ.get("REFRESH_TOKEN", "")
-    if expected:
-        if x_refresh_token is None or not hmac.compare_digest(
-            x_refresh_token.encode("utf-8"), expected.encode("utf-8")
-        ):
-            raise HTTPException(401, "invalid token")
+    if not expected:
+        raise HTTPException(503, "refresh disabled (REFRESH_TOKEN not set)")
+    if not x_refresh_token or not hmac.compare_digest(
+        x_refresh_token.encode("utf-8"), expected.encode("utf-8")
+    ):
+        raise HTTPException(401, "invalid token")
 
     service_key = os.environ.get("INCHEON_API_KEY", "")
     if not service_key:
