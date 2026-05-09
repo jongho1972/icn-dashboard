@@ -31,6 +31,8 @@ def main():
     dates = pd.date_range(start, periods=10).strftime("%Y%m%d").tolist()
     print(f"수집 대상: {dates[0]} ~ {dates[-1]}")
 
+    saved = 0
+    errors: list[tuple[str, str]] = []
     for d in dates:
         params = {
             "serviceKey": service_key, "pageNo": "1", "numOfRows": "2000",
@@ -38,17 +40,24 @@ def main():
         }
         try:
             r = requests.get(API_URL, params=params, timeout=30)
+            r.raise_for_status()
             items = r.json()["response"]["body"]["items"]
             if items:
                 df = pd.DataFrame(items)
                 df.to_pickle(os.path.join(daily_dir, f"flight_schedule_{d}.pkl"))
+                saved += 1
                 print(f"  {d}: {len(df):,}건 저장")
             else:
                 print(f"  {d}: 데이터 없음")
         except Exception as e:
-            print(f"  {d} 오류: {e}")
+            errors.append((d, repr(e)))
+            sys.stderr.write(f"  {d} 오류: {e!r}\n")
 
-    print("완료")
+    print(f"완료 (saved={saved}/{len(dates)}, errors={len(errors)})")
+    # 한 건도 저장 못 했으면 exit 1 → GH Actions 실패 → SMTP 통지 트리거
+    if saved == 0:
+        sys.stderr.write("FATAL: 모든 일자 수집 실패\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
