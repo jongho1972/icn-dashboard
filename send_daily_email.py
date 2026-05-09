@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""인천공항 국제선 출발 항공편수 대시보드 일일 메일링 (SMTP).
+"""인천공항 국제선 항공편수 대시보드 일일 메일링 (SMTP).
 
 캡처는 외부에서 (Playwright MCP 등) 수행하고, 본 스크립트는 PNG를 받아 SMTP로 발송한다.
 
@@ -52,7 +52,7 @@ def send(image_path: Path, recipients: list[str], date_str: str) -> None:
     password = "".join(os.environ["GMAIL_APP_PASSWORD"].split())
 
     msg = MIMEMultipart("related")
-    msg["Subject"] = f"인천공항 국제선 출발 항공편수 ({date_str})"
+    msg["Subject"] = f"인천공항 국제선 항공편수 ({date_str})"
     msg["From"] = formataddr(("인천공항점(마케팅)", user))
     msg["To"] = ", ".join(recipients)
 
@@ -64,9 +64,9 @@ def send(image_path: Path, recipients: list[str], date_str: str) -> None:
 <html><body style="font-family:'Noto Sans KR','Helvetica Neue',Arial,sans-serif;color:#222;background:#f7f7fa;padding:20px;margin:0;">
   <div style="max-width:960px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid #e5e5ea;">
     <p style="margin:0 0 12px 0;font-size:14px;color:#444;">안녕하세요,</p>
-    <p style="margin:0 0 20px 0;font-size:14px;color:#444;"><strong>인천공항 국제선 출발 항공편수</strong>을 공유드립니다.</p>
+    <p style="margin:0 0 20px 0;font-size:14px;color:#444;"><strong>인천공항 국제선 항공편수</strong>을 공유드립니다.</p>
     <p style="margin:0 0 20px 0;">
-      <img src="cid:dashboard" alt="인천공항 국제선 출발 항공편수 {date_str}" style="max-width:100%;height:auto;display:block;border:1px solid #ddd;border-radius:4px;">
+      <img src="cid:dashboard" alt="인천공항 국제선 항공편수 {date_str}" style="max-width:100%;height:auto;display:block;border:1px solid #ddd;border-radius:4px;">
     </p>
     <p style="margin:0 0 8px 0;font-size:13px;">
       대시보드 바로 가기: <a href="{DASHBOARD_URL}" style="color:#13407F;text-decoration:none;font-weight:600;">{DASHBOARD_URL}</a>
@@ -90,7 +90,7 @@ def send(image_path: Path, recipients: list[str], date_str: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="인천공항 국제선 출발 항공편수 대시보드 일일 메일링")
+    parser = argparse.ArgumentParser(description="인천공항 국제선 항공편수 대시보드 일일 메일링")
     parser.add_argument("image", type=Path, help="발송할 PNG 이미지 경로")
     parser.add_argument("--test", action="store_true", help="GMAIL_USER 본인에게만 발송")
     args = parser.parse_args()
