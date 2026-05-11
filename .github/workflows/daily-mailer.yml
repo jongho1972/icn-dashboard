@@ -1,9 +1,8 @@
 name: Daily mailer
 
 on:
-  schedule:
-    # cron 예약 15:30 KST = 06:30 UTC (큐 지연 +2h 감안, 실제 ~17:30 KST 도착)
-    - cron: '30 6 * * *'
+  # GH Actions schedule 큐 지연(+1~3h) 회피를 위해 cron-job.org에서 외부 트리거
+  # cron-job.org가 15:30 KST에 workflow_dispatch API를 호출해 즉시 발사
   workflow_dispatch:
     inputs:
       test_recipient:
