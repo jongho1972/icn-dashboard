@@ -648,11 +648,12 @@
     <h3>일자별</h3>
 
     {% if tomorrow_kpi %}
-    {% macro flight_delta(pct) -%}
+    {% set dow_label = tomorrow_kpi.prev_label ~ ' ' ~ tomorrow_kpi.weekday ~ '요일 평균' %}
+    {% macro flight_delta(pct, label) -%}
       {%- if pct is not none -%}
         {%- set dcls = 'pos' if pct > 0.05 else ('neg' if pct < -0.05 else 'flat') -%}
         {%- set darr = '▲' if pct > 0.05 else ('▼' if pct < -0.05 else '―') -%}
-        <span class="delta {{ dcls }}" title="전월 동요일 평균 대비"><span class="arrow">{{ darr }}</span>{{ '{:.1f}'.format(pct|abs) }}%</span>
+        <span class="delta {{ dcls }}" title="{{ label }} 대비"><span class="arrow">{{ darr }}</span>{{ '{:.1f}'.format(pct|abs) }}%</span>
       {%- endif -%}
     {%- endmacro %}
     <div class="summary-hero" role="region" aria-label="D+1 예정 항공편수 요약">
@@ -663,28 +664,28 @@
       <div class="summary-hero-rows">
         <div class="summary-row total">
           <span class="lbl">전체 항공편수</span>
-          <span class="val">{{ "{:,}".format(tomorrow_kpi.total) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_total) }}</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.total) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_total, dow_label) }}</span>
           <span class="mtd">
             {% if tomorrow_kpi.avg_total %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_total) }}</b>편){% endif %}
           </span>
         </div>
         <div class="summary-row">
           <span class="lbl">T1 항공편수</span>
-          <span class="val">{{ "{:,}".format(tomorrow_kpi.t1) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t1) }}</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.t1) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t1, dow_label) }}</span>
           <span class="mtd">
             {% if tomorrow_kpi.avg_t1 %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_t1) }}</b>편){% endif %}
           </span>
         </div>
         <div class="summary-row">
           <span class="lbl">T2 항공편수</span>
-          <span class="val">{{ "{:,}".format(tomorrow_kpi.t2) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t2) }}</span>
+          <span class="val">{{ "{:,}".format(tomorrow_kpi.t2) }}<span class="unit">편</span>{{ flight_delta(tomorrow_kpi.delta_t2, dow_label) }}</span>
           <span class="mtd">
             {% if tomorrow_kpi.avg_t2 %}({{ tomorrow_kpi.prev_label }} {{ tomorrow_kpi.weekday }}요일 평균 <b>{{ "{:,}".format(tomorrow_kpi.avg_t2) }}</b>편){% endif %}
           </span>
         </div>
       </div>
       <div class="summary-hero-foot">
-        ※ 결항·회항·코드쉐어 제외 · ▲▼는 <b>전월 동요일 평균</b> 대비
+        ※ 결항·회항·코드쉐어 제외 · ▲▼는 <b>{{ dow_label }}</b> 대비
       </div>
     </div>
     {% endif %}
@@ -914,7 +915,7 @@
         });
         annotations.push({
           x: tomorrowDay, y: yMax,
-          text: "D+1", showarrow: false,
+          text: "내일", showarrow: false,
           font: { size: 10, color: "#64748B", weight: 600 },
           xanchor: "left", yanchor: "top",
           xshift: 4, yshift: -2,
@@ -931,7 +932,7 @@
         annotations.push({
           x: 0, xref: "paper",
           y: prevAvg, yref: "y",
-          text: `전월 평균 ${Math.round(prevAvg).toLocaleString()}`,
+          text: `${chartData.prev_label} 평균 ${Math.round(prevAvg).toLocaleString()}`,
           showarrow: false,
           font: { size: 9, color: "#64748B", weight: 600 },
           xanchor: "right", yanchor: "middle",
