@@ -104,8 +104,9 @@ uvicorn main:app --reload --port 8000
 > **GH Actions cron 큐 지연 보정**: 무료/private 환경에서 cron 예약이 평균 +2h(오전 refresh는 +3h) 지연 발사됨. 모든 스케줄은 의도한 KST 도착 시각보다 2~3시간 일찍 예약되어 있음. 실제 도착 시각이 어긋나면 최근 `gh run list`로 평균 지연을 재측정해 cron을 재조정할 것.
 
 - **GitHub Actions** `.github/workflows/daily-backfill.yml` (Daily_Data 수집)
-  - cron 예약: `30 5 * * *` UTC = 14:30 KST → 큐 지연 흡수 후 실제 ~16:30 KST 도착
-  - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main`
+  - 트리거: **cron-job.org 외부 트리거** (workflow_dispatch) — 17:00 KST 정시 발사
+  - GH Actions schedule는 큐 지연(+1~3h)으로 17:30 메일러 시각을 못 맞출 위험. icn-pax-congestion 5/12 stale 사고 같은 방식의 재발 가능성 사전 차단 → cron-job.org 이전 (2026-05-13)
+  - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main` → Render 자동 재배포 (~1-2분)
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
 - **외부 cron** cron-job.org (Render 슬립 방지 + 페이로드 캐시 워밍)

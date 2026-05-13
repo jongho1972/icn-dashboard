@@ -1,9 +1,8 @@
 name: Daily backfill
 
 on:
-  schedule:
-    # cron 예약 14:30 KST = 05:30 UTC (큐 지연 평균 +2h 감안, 실제 ~16:30 KST 도착)
-    - cron: '30 5 * * *'
+  # GH Actions schedule 큐 지연(+1~3h) 회피를 위해 cron-job.org에서 외부 트리거
+  # cron-job.org가 17:00 KST에 workflow_dispatch API 호출 → 17:30 KST 메일러 발사 전까지 30분 버퍼
   workflow_dispatch:
 
 permissions:
