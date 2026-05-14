@@ -710,7 +710,7 @@
     {{ gate_html | safe }}
 
     <h3>시간대별</h3>
-    <div class="section-note">시간대별 일평균 편수 (출발 예정시각 기준)</div>
+    <div class="section-note">시간대별 합계 편수 (출발 예정시각 기준)</div>
     <div id="chart_hourly_t1" class="chart"></div>
     <div id="chart_hourly_t2" class="chart" style="margin-bottom: 28px;"></div>
 
@@ -1035,7 +1035,7 @@
       ...(hourlyData.T2.curr || []), ...(hourlyData.T2.prev || []),
       0
     );
-    const hourlyYRange = [0, Math.max(1, Math.ceil(hourlyMax * 1.15 * 10) / 10)];
+    const hourlyYRange = [0, Math.max(10, Math.ceil(hourlyMax * 1.15 / 10) * 10)];
 
     const makeHourlyTraces = (data, currColor) => {
       const traces = [];
@@ -1045,7 +1045,7 @@
           type: "scatter", mode: "lines",
           line: { color: "#94A3B8", width: 1.8, dash: "5px,3px" },
           name: hourlyData.prev_label,
-          hovertemplate: "%{y:.1f}편<extra></extra>",
+          hovertemplate: "%{y:,}편<extra></extra>",
         });
       }
       if ((data.curr || []).some(v => v > 0)) {
@@ -1055,7 +1055,7 @@
           line: { color: currColor, width: 2.5 },
           marker: { color: currColor, size: 5 },
           name: hourlyData.curr_label,
-          hovertemplate: "%{y:.1f}편<extra></extra>",
+          hovertemplate: "%{y:,}편<extra></extra>",
         });
       }
       return traces;

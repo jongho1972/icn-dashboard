@@ -667,8 +667,8 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
             "prev": hourly_prev_T2["values"],
             "available": hourly_curr_T2["available"] or hourly_prev_T2["available"],
         },
-        "curr_label": f"{curr_label} MTD 평균 ({period_label})",
-        "prev_label": f"{prev_label} MTD 평균 ({period_label})",
+        "curr_label": f"{curr_label} ({period_label})",
+        "prev_label": f"{prev_label} ({period_label})",
     }
 
     response = templates.TemplateResponse(

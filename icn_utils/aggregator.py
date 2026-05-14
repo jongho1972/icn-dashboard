@@ -142,16 +142,16 @@ def agg_gate(prev, curr):
 
 
 def agg_hourly_mtd(df, terminal, cutoff_day):
-    """터미널·시간대별 평균 편수 (1~cutoff_day 일평균). 24시간 배열 반환.
+    """터미널·시간대별 합계 편수 (1~cutoff_day 누계). 24시간 배열 반환.
 
     df: prepare()로 가공된 DataFrame (출발시각 컬럼 보유).
-    cutoff_day: 평균 분모 (이번달=max_day, 전월=동일일수).
+    cutoff_day: 집계 구간 (이번달=max_day, 전월=동일일수).
     """
     if cutoff_day <= 0:
-        return {"hours": list(range(24)), "values": [0.0] * 24, "days": 0, "available": False}
+        return {"hours": list(range(24)), "values": [0] * 24, "days": 0, "available": False}
     sub = df[(df["터미널"] == terminal) & (df["DD"] <= cutoff_day) & df["출발시각"].notna()]
     counts = sub.groupby("출발시각").size().to_dict()
-    values = [round(counts.get(h, 0) / cutoff_day, 2) for h in range(24)]
+    values = [int(counts.get(h, 0)) for h in range(24)]
     return {
         "hours": list(range(24)),
         "values": values,
