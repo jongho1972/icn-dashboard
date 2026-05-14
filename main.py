@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from icn_utils.aggregator import (
     GATES, REGIONS, AIRLINES, REGION_MERGE,
-    agg_airline, agg_daily, agg_gate, agg_region, agg_total,
+    agg_airline, agg_daily, agg_gate, agg_hourly_mtd, agg_region, agg_total,
     airline_group, gate_group,
     pct, prepare, rows_to_df,
 )
@@ -650,6 +650,27 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
         },
     }
 
+    # 시간대별 MTD 평균 (이번달 1~max_day vs 전월 1~max_day 동일일수)
+    period_label = f"1~{max_day}일"
+    hourly_curr_T1 = agg_hourly_mtd(curr, "T1", max_day)
+    hourly_curr_T2 = agg_hourly_mtd(curr, "T2", max_day)
+    hourly_prev_T1 = agg_hourly_mtd(prev_same, "T1", max_day)
+    hourly_prev_T2 = agg_hourly_mtd(prev_same, "T2", max_day)
+    hourly_data = {
+        "T1": {
+            "curr": hourly_curr_T1["values"],
+            "prev": hourly_prev_T1["values"],
+            "available": hourly_curr_T1["available"] or hourly_prev_T1["available"],
+        },
+        "T2": {
+            "curr": hourly_curr_T2["values"],
+            "prev": hourly_prev_T2["values"],
+            "available": hourly_curr_T2["available"] or hourly_prev_T2["available"],
+        },
+        "curr_label": f"{curr_label} MTD 평균 ({period_label})",
+        "prev_label": f"{prev_label} MTD 평균 ({period_label})",
+    }
+
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -679,6 +700,7 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
             "daily_html": daily_html,
             "tomorrow_kpi": tomorrow_kpi,
             "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
+            "hourly_data_json": json.dumps(hourly_data, ensure_ascii=False),
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
             "countries": countries,
