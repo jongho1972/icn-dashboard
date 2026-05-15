@@ -96,7 +96,7 @@ uvicorn main:app --reload --port 8000
 ## 배포
 
 - **Render (무료 플랜)**: GitHub 푸시 시 자동 재빌드
-- URL: <https://jhawk-flight-schedule.onrender.com>
+- URL: <https://flight.j-hawk.kr>
 - Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (Render Dashboard → Environment)
 
 ## 자동화
