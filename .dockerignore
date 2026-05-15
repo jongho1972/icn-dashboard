@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.git/
+.github/
+.claude/
+.env*
+*.ipynb
+*.docx
+참고자료/
+capture_dashboard.py
+verify_intraday_diff.py
+.DS_Store
