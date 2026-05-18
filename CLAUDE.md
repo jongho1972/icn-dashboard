@@ -1,6 +1,6 @@
 # ICN_Dashboard
 
-인천공항 국제선 항공편수 월간 비교 대시보드 (FastAPI + Plotly.js → Render)
+인천공항 국제선 항공편수 월간 비교 대시보드 (FastAPI + Plotly.js → j-hawk VPS)
 
 ## 접근 제어
 - `templates/index.html` 상단 인라인 비번 게이트 (`<style id="auth-gate">`)
@@ -25,7 +25,8 @@
 | `항공편목적지.txt` | 공항코드 → 국가·지역 매핑 |
 | `Daily_Data/` | 일별 원본 pkl (매일 누적) |
 | `Final_Data/` | 완료된 월의 가공된 cum pkl |
-| `render.yaml` | Render 배포 설정 (python runtime, uvicorn) |
+| `Dockerfile` | VPS Docker Compose 빌드 (python:3.11-slim · uvicorn) |
+| `render.yaml` | (deprecated) 구 Render 배포 설정. VPS 전환 후 미사용 |
 | `requirements.txt` | fastapi, uvicorn, jinja2, pandas, requests, holidays 등 |
 | `Raw_Data_Format.txt` | `/api/export-raw` CSV 컬럼 순서·샘플 레퍼런스 (18개 컬럼) |
 | `.env` | `INCHEON_API_KEY` (gitignore) |
@@ -42,7 +43,7 @@ uvicorn main:app --reload --port 8000
 
 - **이번달**: 최근 10일치(D-3~D+6) API 실시간 + `Daily_Data/` 과거 일별 pkl 병합 → 가공
 - **지난달**: `Final_Data/flight_schedule_YYYYMM_cum.pkl` 우선, 없으면 `Daily_Data` 재가공
-- **매일 자동 수집**: Claude Code 스케줄 트리거 → `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → Render 자동 재배포
+- **매일 자동 수집**: cron-job.org 외부 트리거 → GH Actions `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → VPS 자동 재배포
 - **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 디스크에서 즉시 로드.
 - **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출. 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
 
@@ -95,9 +96,10 @@ uvicorn main:app --reload --port 8000
 
 ## 배포
 
-- **Render (무료 플랜)**: GitHub 푸시 시 자동 재빌드
+- **j-hawk VPS** (Hetzner CAX11 ARM · Docker Compose + Caddy): GitHub `main` 푸시 시 `deploy.yml`이 VPS SSH → `git reset --hard` → `docker compose build/up flight` → `/healthz` 체크
 - URL: <https://flight.j-hawk.kr>
-- Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (Render Dashboard → Environment)
+- Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (VPS `/opt/j-hawk/deploy/.env.flight`)
+- 공통 인프라·롤백·트러블슈팅: 워크스페이스 루트 `deploy/README.md` 또는 `vps-deploy` 스킬
 
 ## 자동화
 
@@ -106,12 +108,11 @@ uvicorn main:app --reload --port 8000
 - **GitHub Actions** `.github/workflows/daily-backfill.yml` (Daily_Data 수집)
   - 트리거: **cron-job.org 외부 트리거** (workflow_dispatch) — 17:00 KST 정시 발사
   - GH Actions schedule는 큐 지연(+1~3h)으로 17:30 메일러 시각을 못 맞출 위험. icn-pax-congestion 5/12 stale 사고 같은 방식의 재발 가능성 사전 차단 → cron-job.org 이전 (2026-05-13)
-  - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main` → Render 자동 재배포 (~1-2분)
+  - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main` → VPS 자동 재배포 (~1-2분)
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
-- **외부 cron** cron-job.org (Render 슬립 방지 + 페이로드 캐시 워밍)
-  - 14분 간격 `GET /healthz`. private 저장소 전환으로 GH Actions 무료 한도(2,000분/월) 초과 위험 → 외부 무료 cron으로 이전
-  - 일일 4건 자동화(backfill·refresh×2·mailer)도 컨테이너 워밍에 기여하므로 cron-job.org 단기 장애는 큰 영향 없음
+- **외부 cron** cron-job.org (페이로드 캐시 워밍 유지용 — VPS 전환 후 슬립 방지 목적은 없음)
+  - 14분 간격 `GET /healthz`
 - **GitHub Actions** `.github/workflows/refresh-cache.yml` (캐시 갱신)
   - cron 예약: `0 22,6 * * *` UTC = 07:00 KST(다음날) / 15:00 KST → 큐 지연 흡수 후 실제 ~10:00 / ~17:00 KST 도착
   - 동작: `POST /api/refresh` (헤더 `X-Refresh-Token: ${{ secrets.REFRESH_TOKEN }}`)
