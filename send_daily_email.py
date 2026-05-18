@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
 
-DASHBOARD_URL = "https://flight.j-hawk.kr"
+DASHBOARD_URL = "https://flight.jhawk.kr"
 MAILING_LIST_PATH = ROOT / "mailing_list.txt"
 
 

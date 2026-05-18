@@ -37,7 +37,7 @@ jobs:
       - name: Pre-warm dashboard
         run: |
           for i in 1 2 3; do
-            if curl -fsS --max-time 60 https://flight.j-hawk.kr/healthz; then
+            if curl -fsS --max-time 60 https://flight.jhawk.kr/healthz; then
               echo " — healthz OK (attempt $i)"
               break
             fi

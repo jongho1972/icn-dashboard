@@ -40,7 +40,7 @@ jobs:
       - name: Healthcheck
         run: |
           for i in {1..6}; do
-            if curl -fsS https://flight.j-hawk.kr/healthz; then
+            if curl -fsS https://flight.jhawk.kr/healthz; then
               echo "OK"; exit 0
             fi
             sleep 10
