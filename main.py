@@ -671,6 +671,10 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
         "prev_label": f"{prev_label} ({period_label})",
     }
 
+    # Raw 모달 시작일 디폴트: 실제 오늘 기준 전월 1일 (조회 중인 월과 무관, 데이터 시작일 하한으로 clamp)
+    _py, _pm = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    export_default_start = max(date(_py, _pm, 1), _earliest_available_date())
+
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -704,7 +708,7 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
             "unmapped": unmapped,
             "regions": REGIONS + ["중동", "대양주", "국내선"],  # 입력 시 원본 지역 허용
             "countries": countries,
-            "export_default_start": date(prev_year, prev_month, 1).isoformat(),
+            "export_default_start": export_default_start.isoformat(),
             "export_default_end": _latest_available_date().isoformat(),
             "export_min_date": _earliest_available_date().isoformat(),
             "export_max_date": _latest_available_date().isoformat(),
