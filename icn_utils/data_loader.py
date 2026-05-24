@@ -101,6 +101,14 @@ def process_raw(raw_df, dest_df):
         "gatenumber": "탑승구", "codeshare": "CODESHARE", "masterflightid": "Master_Flight",
     })
 
+    # CODESHARE 정규화: 인천공항 API는 코드셰어가 없는 단독 운항편의 codeshare를
+    # 빈값/결측으로 반환하는 경우가 있다(과거 일부 월: 2024.4~7·2025.4~7·9·10 등).
+    # 집계(aggregator)는 CODESHARE=="Master"로 운항편을 세므로 빈값이면 통째로 누락돼
+    # 2025-10 같은 월이 절반으로 과소집계됐다. 빈값 편은 Master_Flight도 비어 있어
+    # (= 슬레이브가 아님) 단독 운항편이 확실하므로 "Master"로 정규화한다. "Slave"만 보존.
+    _cs = df["CODESHARE"].astype(str).str.strip()
+    df["CODESHARE"] = _cs.where(_cs == "Slave", "Master")
+
     def _prior(x):
         if x["remark"] == "출발": return 1
         g = x["탑승구"]
