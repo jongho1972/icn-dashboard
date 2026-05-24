@@ -50,6 +50,7 @@ uvicorn main:app --reload --port 8000
 ## 집계 규칙
 
 - `CODESHARE == "Master"`만 카운트 (공동운항 편 제외)
+  - **process_raw가 빈값/결측 CODESHARE를 `Master`로 정규화**(`Slave`만 보존)한다. API가 코드셰어 없는 단독 운항편의 codeshare를 빈값으로 주는 월(예: 2025-10)이 있어, 정규화 없이는 단독편이 통째로 누락돼 과소집계됨(2026-05-24 수정). 빈값 편은 Master_Flight도 비어 슬레이브가 아니라 단독 운항편임이 확인됨
 - 국내선 제외 — `typeOfFlight == "I"` (API 명세 공식 필드) 우선, 컬럼 누락 시 `지역 != "국내선"` fallback
 - **결항·회항 제외** (`remark` 값이 "결항" 또는 "회항"인 건 제외)
 - 지난달·이번달 동일기간 비교 (양쪽 모두 `DD <= 이번달_max_day` 필터)
