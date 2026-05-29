@@ -123,7 +123,23 @@ def process_raw(raw_df, dest_df):
     else:
         df["_dedup_key"] = df["Flight_Key"]
     df = df.sort_values(["_dedup_key", "priority"]).drop_duplicates("_dedup_key", keep="first")
-    df = df.drop(columns=["priority", "_dedup_key"])
+
+    # 2차 dedup: API가 같은 운항편을 출발 전후로 fid 두 개 발급(EK323 + EK323Y 등) 하는
+    # phantom 중복 제거. 자연키 = (estimatedDateTime, 항공사, airportCode, 정규편명).
+    # 정규편명은 trailing 'Y' 1회 제거 — 검증 결과 4·5월 Y편 461건 100%가 base편 짝
+    # (정규 Y편 0건). MU5012/MU5034 같은 동시각 다른편은 정규편명이 달라 보존됨.
+    df["_norm_fid"] = df["운항편명"].where(
+        ~(df["운항편명"].astype(str).str.endswith("Y") & (df["운항편명"].astype(str).str.len() > 1)),
+        df["운항편명"].astype(str).str[:-1],
+    )
+    df["_natural_key"] = (
+        df["estimatedDateTime"].astype(str) + "|"
+        + df["항공사"].astype(str) + "|"
+        + df["airportCode"].astype(str) + "|"
+        + df["_norm_fid"].astype(str)
+    )
+    df = df.sort_values(["_natural_key", "priority"]).drop_duplicates("_natural_key", keep="first")
+    df = df.drop(columns=["priority", "_dedup_key", "_norm_fid", "_natural_key"])
     df = pd.merge(df, dest_df, on="목적지", how="left")
     return df
 
