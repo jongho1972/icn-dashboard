@@ -125,10 +125,10 @@ def agg_region(prev, curr):
 
 def agg_gate(prev, curr):
     rows = []
-    p_t1 = prev[(prev["터미널"] == "T1") & prev["게이트그룹"].notna()]
-    c_t1 = curr[(curr["터미널"] == "T1") & curr["게이트그룹"].notna()]
-    p_t2 = prev[(prev["터미널"] == "T2") & prev["게이트그룹"].notna()]
-    c_t2 = curr[(curr["터미널"] == "T2") & curr["게이트그룹"].notna()]
+    p_t1 = prev[prev["터미널"] == "T1"]
+    c_t1 = curr[curr["터미널"] == "T1"]
+    p_t2 = prev[prev["터미널"] == "T2"]
+    c_t2 = curr[curr["터미널"] == "T2"]
     rows.append({"구분": "소계", "T1_prev": len(p_t1), "T1_curr": len(c_t1), "T2_prev": len(p_t2), "T2_curr": len(c_t2)})
     for g in GATES:
         rows.append({
@@ -138,6 +138,13 @@ def agg_gate(prev, curr):
             "T2_prev": int((p_t2["게이트그룹"] == g).sum()),
             "T2_curr": int((c_t2["게이트그룹"] == g).sum()),
         })
+    rows.append({
+        "구분": "미분류",
+        "T1_prev": int(p_t1["게이트그룹"].isna().sum()),
+        "T1_curr": int(c_t1["게이트그룹"].isna().sum()),
+        "T2_prev": int(p_t2["게이트그룹"].isna().sum()),
+        "T2_curr": int(c_t2["게이트그룹"].isna().sum()),
+    })
     return rows
 
 
