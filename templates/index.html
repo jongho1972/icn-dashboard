@@ -475,6 +475,9 @@
     table.icn tr.total-row td.label {
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
+    /* 소계 행의 전월비 색상은 본문과 동일하게 (pos=crimson, neg=blue) */
+    table.icn tr.total-row td.pos { color: var(--crimson); }
+    table.icn tr.total-row td.neg { color: var(--delta-blue); }
 
     /* 일자별 통합 표 (T1·T2 그룹) — 전체 폭 100%, 날짜·요일만 좁게 고정 */
     table.icn.daily-t { width: 100%; table-layout: fixed; }
