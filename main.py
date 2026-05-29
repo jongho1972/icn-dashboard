@@ -866,18 +866,36 @@ async def export_raw(start: str, end: str):
                if cur.month == 12 else cur.replace(month=cur.month + 1))
 
     dest = load_dest()
-    # 월별로 로드: Final_Data cum(이미 가공) 우선, 없으면 Daily_Data + process_raw
+    today = datetime.now(KST).date()
+    service_key = os.environ.get("INCHEON_API_KEY", "")
+    # 진행 중 월(또는 D-3~D+6 API 윈도우와 겹치는 월)이 요청에 있으면 라이브 API 1회 호출
+    needs_api = any(
+        (int(ym[:4]), int(ym[4:])) >= (today.year, today.month) for ym in months
+    )
+    raw_api_all = (
+        fetch_recent(service_key) if (needs_api and service_key) else pd.DataFrame()
+    )
+
+    # 월별로 로드: 완료 월은 Final_Data cum(이미 가공) 우선, 진행 중 월은 Daily+API 병합 후 process_raw
     dfs = []
     for yyyymm in months:
         y, m = int(yyyymm[:4]), int(yyyymm[4:])
-        cum = load_final_month(str(FINAL_DIR), yyyymm)
+        is_completed_month = (y, m) < (today.year, today.month)
+        cum = load_final_month(str(FINAL_DIR), yyyymm) if is_completed_month else pd.DataFrame()
         if len(cum) > 0:
             part = cum[(cum["YYYY"] == y) & (cum["MM"] == m)]
         else:
             raw_daily = load_daily_month(str(DAILY_DIR), yyyymm)
-            if len(raw_daily) == 0:
+            # 라이브 API에서 이 월에 해당하는 행만 추출 (scheduleDateTime: 'YYYYMMDD....')
+            api_for_month = (
+                raw_api_all[raw_api_all["scheduleDateTime"].str[:6] == yyyymm]
+                if len(raw_api_all) > 0 else pd.DataFrame()
+            )
+            parts_raw = [d for d in [raw_daily, api_for_month] if len(d) > 0]
+            if not parts_raw:
                 continue
-            part = process_raw(raw_daily, dest)
+            raw = pd.concat(parts_raw, ignore_index=True) if len(parts_raw) > 1 else parts_raw[0]
+            part = process_raw(raw, dest)
             part = part[(part["YYYY"] == y) & (part["MM"] == m)]
         if len(part) > 0:
             dfs.append(part)
