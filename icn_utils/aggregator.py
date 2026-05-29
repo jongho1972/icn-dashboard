@@ -99,6 +99,16 @@ def agg_daily(prev, curr, max_day):
     return rows
 
 
+def _subtotal_row(prev, curr):
+    return {
+        "구분": "소계",
+        "T1_prev": int((prev["터미널"] == "T1").sum()),
+        "T1_curr": int((curr["터미널"] == "T1").sum()),
+        "T2_prev": int((prev["터미널"] == "T2").sum()),
+        "T2_curr": int((curr["터미널"] == "T2").sum()),
+    }
+
+
 def agg_airline(prev, curr):
     rows = []
     for a in AIRLINES:
@@ -107,7 +117,7 @@ def agg_airline(prev, curr):
             "T1_prev": _cnt(prev, "T1", 항공사그룹=a), "T1_curr": _cnt(curr, "T1", 항공사그룹=a),
             "T2_prev": _cnt(prev, "T2", 항공사그룹=a), "T2_curr": _cnt(curr, "T2", 항공사그룹=a),
         })
-    return rows
+    return [_subtotal_row(prev, curr)] + rows
 
 
 def agg_region(prev, curr):
@@ -120,7 +130,7 @@ def agg_region(prev, curr):
             "T2_prev": _cnt(prev, "T2", 지역=r), "T2_curr": _cnt(curr, "T2", 지역=r),
         })
     rows.sort(key=lambda x: x["T1_curr"] + x["T2_curr"], reverse=True)
-    return rows
+    return [_subtotal_row(prev, curr)] + rows
 
 
 def agg_gate(prev, curr):

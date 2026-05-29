@@ -580,10 +580,10 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
     total_html = df_to_html(df_total, prev_label, curr_label)
 
     df_airline = rows_to_df(agg_airline(prev_same, curr), prev_label, curr_label)
-    airline_html = df_to_html(df_airline, prev_label, curr_label)
+    airline_html = df_to_html(df_airline, prev_label, curr_label, total_row_idx=0)
 
     df_region = rows_to_df(agg_region(prev_same, curr), prev_label, curr_label)
-    region_html = df_to_html(df_region, prev_label, curr_label)
+    region_html = df_to_html(df_region, prev_label, curr_label, total_row_idx=0)
 
     # 게이트별: D-1 기준 (운항정보 마감)
     d_minus_1 = today - timedelta(days=1)
