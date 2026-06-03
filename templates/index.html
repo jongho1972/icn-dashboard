@@ -17,7 +17,7 @@
       --orange-600: #C26420;
       --orange-025: #FBF3EB;
       --red-600: #B42318;
-      --crimson: #8C0023;
+      --pos-red: #C62828;
       --delta-blue: #2A52BE;
       --slate-700: #334155;
       --slate-500: #64748B;
@@ -274,7 +274,7 @@
       font-size: 14px; font-weight: 500; margin-left: 3px;
       color: var(--slate-500);
     }
-    .summary-row.total .val { font-size: 36px; color: var(--crimson); }
+    .summary-row.total .val { font-size: 36px; color: var(--pos-red); }
     .summary-row .mtd {
       font-size: 12px; color: var(--slate-500);
       white-space: nowrap;
@@ -292,7 +292,7 @@
       vertical-align: baseline;
     }
     .summary-row.total .delta { font-size: 16px; }
-    .summary-row .delta.pos { color: var(--crimson); }
+    .summary-row .delta.pos { color: var(--pos-red); }
     .summary-row .delta.neg { color: var(--delta-blue); }
     .summary-row .delta.flat { color: var(--slate-400); }
     .summary-row .delta .arrow { font-size: 0.85em; line-height: 1; }
@@ -368,7 +368,7 @@
       background: transparent; color: var(--slate-700); font-weight: 500;
       padding: 7px 12px;
     }
-    table.icn td.pos { color: var(--crimson); font-weight: 600; font-variant-numeric: tabular-nums; }
+    table.icn td.pos { color: var(--pos-red); font-weight: 600; font-variant-numeric: tabular-nums; }
     table.icn td.neg { color: var(--delta-blue); font-weight: 600; font-variant-numeric: tabular-nums; }
     table.icn td.dash { color: var(--slate-400); font-weight: 400; }
     table.icn th.t1-last, table.icn td.t1-last,
@@ -386,8 +386,8 @@
     table.icn tr.total-row td.label {
       background: var(--blue-025); color: var(--navy-900); font-weight: 700;
     }
-    /* 소계 행의 전월비 색상은 본문과 동일하게 (pos=crimson, neg=blue) */
-    table.icn tr.total-row td.pos { color: var(--crimson); }
+    /* 소계 행의 전월비 색상은 본문과 동일하게 (pos=red, neg=blue) */
+    table.icn tr.total-row td.pos { color: var(--pos-red); }
     table.icn tr.total-row td.neg { color: var(--delta-blue); }
 
     /* 일자별 통합 표 (T1·T2 그룹) — 전체 폭 100%, 날짜·요일만 좁게 고정 */
