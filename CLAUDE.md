@@ -22,6 +22,7 @@
 | `icn_utils/aggregator.py` | 월간 비교 집계 (전체·일자별·항공사별·도착지별·게이트별) |
 | `icn_utils/__init__.py` | 패키지 초기화 (Python 3.14 import 이슈 회피용) |
 | `backfill.py` | cron용 일별 API 수집 스크립트 |
+| `backfill_web.py` | **폴백** 일별 수집 — data.go.kr API가 막혔을 때 airport.kr 출발 시간표 JSON에서 동일 스키마 수집 (인증키 불필요) |
 | `항공편목적지.txt` | 공항코드 → 국가·지역 매핑 |
 | `Daily_Data/` | 일별 원본 pkl (매일 누적) |
 | `Final_Data/` | 완료된 월의 가공된 cum pkl |
@@ -44,6 +45,7 @@ uvicorn main:app --reload --port 8000
 - **이번달**: 최근 10일치(D-3~D+6) API 실시간 + `Daily_Data/` 과거 일별 pkl 병합 → 가공
 - **지난달**: `Final_Data/flight_schedule_YYYYMM_cum.pkl` 우선, 없으면 `Daily_Data` 재가공
 - **매일 자동 수집**: cron-job.org 외부 트리거 → GH Actions `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → VPS 자동 재배포
+- **수집 폴백 (2026-07-29~)**: `backfill.py`가 실패하면 워크플로우가 `backfill_web.py`(airport.kr)로 자동 전환. 상세는 아래 "데이터 소스 폴백" 참조
 - **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 디스크에서 즉시 로드.
 - **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출. 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
 
@@ -110,6 +112,7 @@ uvicorn main:app --reload --port 8000
   - 트리거: **cron-job.org 외부 트리거** (workflow_dispatch) — 17:00 KST 정시 발사
   - GH Actions schedule는 큐 지연(+1~3h)으로 17:30 메일러 시각을 못 맞출 위험. icn-pax-congestion 5/12 stale 사고 같은 방식의 재발 가능성 사전 차단 → cron-job.org 이전 (2026-05-13)
   - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main` → VPS 자동 재배포 (~1-2분)
+  - **폴백 분기**: `backfill.py` 스텝은 `continue-on-error`. 실패하면 `backfill_web.py`(airport.kr)가 실행되고, 커밋 메시지에 `(web fallback)`이 붙으며 `[폴백]` 제목의 안내 메일이 발송된다. 양쪽 다 실패해야 `[실패]` 메일 + 워크플로우 실패
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
 - **외부 cron** cron-job.org (페이로드 캐시 워밍 유지용 — VPS 전환 후 슬립 방지 목적은 없음)
@@ -128,6 +131,35 @@ uvicorn main:app --reload --port 8000
   - `workflow_dispatch` 입력 `test_recipient` 지원 (입력 시 해당 1명에게만 발송)
   - 실패 시(`if: failure()`) `jongho1972@gmail.com`로 자동 통지 (Gmail SMTP)
   - Secrets: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_RECIPIENTS`, `DASHBOARD_PASSWORD`
+
+## 데이터 소스 폴백 (2026-07-29~)
+
+**사건**: 2026-07-29 17:00 KST 수집분부터 data.go.kr `B551177`(인천공항공사) 전 엔드포인트가 `403 Forbidden`(본문 평문 `Forbidden`). 임의 키는 401을 주는데 이 키는 403이고, **같은 키로 `openapi.tour.go.kr`은 200 정상** → 인증키·계정 문제가 아니라 **인천공항공사 오픈API 활용신청(개발계정) 승인 만료**로 판단.
+
+**복구 방법**: data.go.kr 로그인 → 마이페이지 → 오픈API → 개발계정 활용신청 상세 → 해당 서비스 활용기간 연장(재)신청.
+※ 2026-07-29 19:00 ~ 08-02 18:00은 포털 전환 작업으로 로그인·마이페이지·활용신청이 모두 중단됨.
+
+**폴백 소스**: airport.kr 여객 출발 시간표의 내부 JSON 엔드포인트.
+
+```
+POST https://www.airport.kr/dep/ap_ko/getDepPasSchList.do
+siteId=ap_ko&langSe=ko&daySel=YYYYMMDD&curDate=YYYYMMDD
+&fromTime=0000&toTime=2359&startTime=0000&endTime=2359
+```
+
+- 인증키·쿠키·layout 파라미터 불필요. **하루치 1회 요청**으로 전량(1,050~1,130행) 반환
+- 조회 범위 **D-14 ~ D+6** (D+7은 0행) — API의 D-3~D+6보다 넓어 결손 복구 여력이 있음
+- 해외 IP 정상 (GH Actions·VPS 확인)
+- 필드 매핑: `airlineNameKo→airline` `fnumber→flightId` `sdate+stime→scheduleDateTime` `btime→estimatedDateTime` `airportName1Ko→airport` `p1code→airportCode` `terminalId→terminalid` `stattxt→remark` `standPosition→fstandposition` `afsId→fid`
+- `codeshare`가 API와 **같은 어휘**(`Master`/`Slave`/빈값)를 쓰고 **`afsId` 값이 API `fid`와 동일** → 기존 정규화·dedup 로직이 수정 없이 성립하고 기존 Daily_Data와 섞여도 안전
+- `masterflight`는 단독편에 자기 편명이 들어와 `to_row()`에서 빈값으로 정규화 (API 규약에 맞춤)
+
+**검증 (2026-07-29, 10일치 대조)**: `fid` 교집합 기준 집계 핵심 컬럼(airline·flightId·scheduleDateTime·airport·airportCode·terminalid·typeOfFlight·codeshare·masterflightid) **불일치 0건**. Master·국제·결항제외 편수도 일자별 동일(예: 7/26 552=552, 7/31 565=565). 차이 나는 건 `remark`·`estimatedDateTime`·게이트뿐이고 전부 "17:00 스냅샷 vs 현재 최종값"의 시점 차 — 폴백 쪽이 오히려 최신이다. `terminalid` P01↔P02 재배정은 `터미널` 매핑상 둘 다 T1이라 T1/T2 집계에 영향 없음.
+
+**주의**
+- 비공식 내부 AJAX라 사이트 개편 시 예고 없이 바뀔 수 있다. **API 복구 후에는 API 경로로 자동 복귀**(폴백은 `backfill.py` 실패 시에만 실행)
+- robots.txt는 `/dep/`를 크롤러 허용 목록에 두지 않는다(같은 사이트를 쓰는 icn-pax-congestion도 동일 조건). 하루 10회 수준의 자체 지표 수집 용도
+- 런타임(`data_loader.fetch_recent`)은 여전히 API만 호출한다. 실패 시 빈 DataFrame으로 degrade되어 화면은 `Daily_Data` 기준으로 정상 동작하며, 당일 중 실시간 갱신만 빠진다
 
 ## 참고
 

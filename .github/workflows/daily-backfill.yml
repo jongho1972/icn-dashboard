@@ -27,11 +27,21 @@ jobs:
         run: pip install pandas requests
 
       - name: Run backfill
+        id: api
+        continue-on-error: true
         env:
           INCHEON_API_KEY: ${{ secrets.INCHEON_API_KEY }}
         run: python3 backfill.py
 
+      # data.go.kr 인천공항공사 API가 막히면(2026-07-29 활용신청 만료 → 전 엔드포인트 403)
+      # airport.kr 출발 시간표 JSON으로 같은 스키마를 수집한다. API가 복구되면 이 스텝은 건너뛴다.
+      - name: Run web fallback backfill
+        if: steps.api.outcome == 'failure'
+        run: python3 backfill_web.py
+
       - name: Commit and push if changed
+        env:
+          SOURCE: ${{ steps.api.outcome == 'failure' && ' (web fallback)' || '' }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -42,10 +52,45 @@ jobs:
             exit 0
           fi
           git diff --cached --stat
-          git commit -m "data: daily backfill $(date -u +%Y%m%d)"
+          git commit -m "data: daily backfill $(date -u +%Y%m%d)${SOURCE}"
           git push origin main || (git pull --rebase origin main && git push origin main)
           echo "RESULT: PUSHED"
           ls Daily_Data/ | wc -l
+
+      # 폴백으로 수집은 됐지만 API는 여전히 막힌 상태 — 복구를 잊지 않도록 매일 1회 알린다.
+      - name: Notify when fallback was used
+        if: success() && steps.api.outcome == 'failure'
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_TO: jongho1972@gmail.com
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import os, smtplib
+          from email.mime.text import MIMEText
+          from email.utils import formataddr
+          user = os.environ.get("GMAIL_USER")
+          pw_raw = os.environ.get("GMAIL_APP_PASSWORD")
+          if not user or not pw_raw:
+              print("[notify] secrets missing; skip"); raise SystemExit(0)
+          body = (
+              "data.go.kr 인천공항공사 API가 여전히 막혀 있어 airport.kr 폴백으로 수집했습니다.\n"
+              "데이터는 정상 갱신됐습니다.\n\n"
+              "복구 방법: data.go.kr 로그인 → 마이페이지 → 오픈API → 개발계정 활용신청 상세 →\n"
+              "'여객기 운항 현황 상세 조회 서비스' 활용기간 연장(재)신청\n\n"
+              f"워크플로우 로그: {os.environ['RUN_URL']}\n"
+          )
+          msg = MIMEText(body, "plain", "utf-8")
+          msg["Subject"] = "[폴백] 인천공항 국제선 항공편수 — API 차단, airport.kr로 수집"
+          msg["From"] = formataddr(("인천공항점(마케팅)", user))
+          msg["To"] = os.environ["NOTIFY_TO"]
+          pw = "".join(pw_raw.split())
+          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+              s.login(user, pw)
+              s.send_message(msg)
+          print("Fallback notification sent to", os.environ["NOTIFY_TO"])
+          PY
 
       - name: Notify on failure
         if: failure()
@@ -65,7 +110,7 @@ jobs:
               print("[notify] secrets missing; skip"); raise SystemExit(0)
           body = (
               "인천공항 국제선 항공편수 daily-backfill이 실패했습니다.\n"
-              "(전체 일자 수집 실패 또는 push 실패)\n\n"
+              "(API·airport.kr 폴백 양쪽 모두 수집 실패, 또는 push 실패)\n\n"
               f"워크플로우 로그: {os.environ['RUN_URL']}\n"
           )
           msg = MIMEText(body, "plain", "utf-8")
