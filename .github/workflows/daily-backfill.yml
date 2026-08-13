@@ -57,40 +57,9 @@ jobs:
           echo "RESULT: PUSHED"
           ls Daily_Data/ | wc -l
 
-      # 폴백으로 수집은 됐지만 API는 여전히 막힌 상태 — 복구를 잊지 않도록 매일 1회 알린다.
-      - name: Notify when fallback was used
-        if: success() && steps.api.outcome == 'failure'
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          NOTIFY_TO: jongho1972@gmail.com
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          python - <<'PY'
-          import os, smtplib
-          from email.mime.text import MIMEText
-          from email.utils import formataddr
-          user = os.environ.get("GMAIL_USER")
-          pw_raw = os.environ.get("GMAIL_APP_PASSWORD")
-          if not user or not pw_raw:
-              print("[notify] secrets missing; skip"); raise SystemExit(0)
-          body = (
-              "data.go.kr 인천공항공사 API가 여전히 막혀 있어 airport.kr 폴백으로 수집했습니다.\n"
-              "데이터는 정상 갱신됐습니다.\n\n"
-              "복구 방법: data.go.kr 로그인 → 마이페이지 → 오픈API → 개발계정 활용신청 상세 →\n"
-              "'여객기 운항 현황 상세 조회 서비스' 활용기간 연장(재)신청\n\n"
-              f"워크플로우 로그: {os.environ['RUN_URL']}\n"
-          )
-          msg = MIMEText(body, "plain", "utf-8")
-          msg["Subject"] = "[폴백] 인천공항 국제선 항공편수 — API 차단, airport.kr로 수집"
-          msg["From"] = formataddr(("인천공항점(마케팅)", user))
-          msg["To"] = os.environ["NOTIFY_TO"]
-          pw = "".join(pw_raw.split())
-          with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
-              s.login(user, pw)
-              s.send_message(msg)
-          print("Fallback notification sent to", os.environ["NOTIFY_TO"])
-          PY
+      # data.go.kr API는 해외 서버 IP를 구조적으로 차단(2026-08-13 확인: GH Actions·VPS 양쪽 다 불가,
+      # 국내 IP만 허용)해 airport.kr 폴백이 사실상 상시 경로다. 폴백 성공은 정상 동작이라 메일 알림 없음.
+      # 양쪽 다 실패했을 때만(진짜 장애) 아래 "Notify on failure"가 통지한다.
 
       - name: Notify on failure
         if: failure()

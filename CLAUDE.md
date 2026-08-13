@@ -112,7 +112,7 @@ uvicorn main:app --reload --port 8000
   - 트리거: **cron-job.org 외부 트리거** (workflow_dispatch) — 17:00 KST 정시 발사
   - GH Actions schedule는 큐 지연(+1~3h)으로 17:30 메일러 시각을 못 맞출 위험. icn-pax-congestion 5/12 stale 사고 같은 방식의 재발 가능성 사전 차단 → cron-job.org 이전 (2026-05-13)
   - 동작: GH-hosted runner가 `backfill.py` 실행 → `Daily_Data/` 갱신 → 변경 있으면 `git push origin main` → VPS 자동 재배포 (~1-2분)
-  - **폴백 분기**: `backfill.py` 스텝은 `continue-on-error`. 실패하면 `backfill_web.py`(airport.kr)가 실행되고, 커밋 메시지에 `(web fallback)`이 붙으며 `[폴백]` 제목의 안내 메일이 발송된다. 양쪽 다 실패해야 `[실패]` 메일 + 워크플로우 실패
+  - **폴백 분기**: `backfill.py` 스텝은 `continue-on-error`. 실패하면 `backfill_web.py`(airport.kr)가 실행되고, 커밋 메시지에 `(web fallback)`이 붙는다. **폴백 성공은 메일 알림 없음**(2026-08-13~, 해외 IP 차단이 구조적이라 상시 경로로 확정돼 매일 알림이 노이즈였음). 양쪽 다 실패해야 `[실패]` 메일 + 워크플로우 실패
   - Secret: `INCHEON_API_KEY` (GitHub repo secret)
   - 이전 Claude Code 라우틴 `trig_01KXfKu4nJ4A1asgvekGCiBN`은 Anthropic CCR이 `apis.data.go.kr`을 host_not_allowed로 차단해 GH Actions로 마이그레이션 (2026-04-29)
 - **외부 cron** cron-job.org (페이로드 캐시 워밍 유지용 — VPS 전환 후 슬립 방지 목적은 없음)
@@ -134,10 +134,15 @@ uvicorn main:app --reload --port 8000
 
 ## 데이터 소스 폴백 (2026-07-29~)
 
-**사건**: 2026-07-29 17:00 KST 수집분부터 data.go.kr `B551177`(인천공항공사) 전 엔드포인트가 `403 Forbidden`(본문 평문 `Forbidden`). 임의 키는 401을 주는데 이 키는 403이고, **같은 키로 `openapi.tour.go.kr`은 200 정상** → 인증키·계정 문제가 아니라 **인천공항공사 오픈API 활용신청(개발계정) 승인 만료**로 판단.
+**사건**: 2026-07-29 17:00 KST 수집분부터 data.go.kr `B551177`(인천공항공사) 전 엔드포인트 접근 불가.
 
-**복구 방법**: data.go.kr 로그인 → 마이페이지 → 오픈API → 개발계정 활용신청 상세 → 해당 서비스 활용기간 연장(재)신청.
-※ 2026-07-29 19:00 ~ 08-02 18:00은 포털 전환 작업으로 로그인·마이페이지·활용신청이 모두 중단됨.
+**최종 진단 (2026-08-13 재확인)**: 원인은 활용신청 만료가 아니라 **해외 서버 IP 구조적 차단**으로 확정.
+- 활용신청은 이미 재승인 완료(활용기간 2026-08-07~2028-08-07, 처리상태 승인)됐는데도 GH Actions에서는 여전히 매일 실패 → 활용신청 문제가 아님을 재확인
+- 로컬(한국 IP): 동일 서비스키로 HTTP·HTTPS 모두 `200 NORMAL SERVICE`
+- GitHub Actions(Azure 데이터센터 IP): `ConnectTimeout`(TCP 연결 자체가 30초간 무응답) — 방화벽 레벨에서 패킷 드롭
+- j-hawk VPS(Hetzner, 핀란드 IP): TCP 연결은 되지만 동일 유효 키로 `403 SERVICE_KEY_IS_NOT_REGISTERED_ERROR`(등록되지 않은 서비스키) — 실제로는 키가 유효한데도 이 에러가 뜨는 건 WAF/CDN이 해외 IP를 걸러내며 가짜 인증 에러를 돌려주는 지오블록 패턴
+- **결론**: 국내 IP가 아니면 GH Actions든 VPS든 어떤 해외 클라우드에서도 우회 불가능. `activation(활용신청) 재연장은 무의미`하며, **airport.kr 폴백이 사실상 상시 정식 경로**다.
+- 폴백 사용 자체는 정상 동작이라 매일 메일 알림은 발송하지 않음(2026-08-13~). 양쪽 다 실패했을 때만 `[실패]` 메일 발송.
 
 **폴백 소스**: airport.kr 여객 출발 시간표의 내부 JSON 엔드포인트.
 
