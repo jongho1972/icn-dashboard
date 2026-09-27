@@ -59,6 +59,8 @@ uvicorn main:app --reload --port 8000
 - **dedup 키**: process_raw 내부에서 `fid`(API 명세상 unique) 우선, 누락 시 `Flight_Key`(편명+일자) fallback. 자정 넘기는 편의 estimatedDateTime 변경으로 같은 운항이 두 Flight_Key로 분리되는 케이스를 방지
 
 > **Final_Data cum pkl 재생성**: `build_final_cum.py YYYYMM` 또는 monthly-cum 워크플로우(매월 1·2일 자동) 사용. process_raw가 `typeOfFlight`·`fid` 컬럼을 보존해 강한 필터·강한 dedup이 자동 적용된다. 외부 노트북 수동 작업 불필요.
+>
+> **도착지 매핑 추가 후 주의**: `/api/add-destinations`(대시보드 "추가하기" 버튼)로 `항공편목적지.txt`에 신규 도착지를 추가해도, 이미 빌드된 과거 월의 `Final_Data/*_cum.pkl`은 국가/지역이 빈값으로 굳어있어 자동 반영되지 않는다(국가/지역은 pkl 생성 시점에 merge돼 저장, 서빙 시 재merge 안 함). 해당 월이 화면에 노출 중(이번달·전월)이면 `build_final_cum.py YYYYMM`으로 그 달을 재생성해 커밋·푸시할 것. 또한 Final_Data만 바뀐 push는 `deploy.yml`의 `paths-ignore`에 걸려 자동 배포가 스킵되므로 `gh workflow run deploy.yml`로 수동 트리거 필요(2026-09-27 맨체스터(MAN) 매핑 누락 사례로 확인).
 
 **게이트 분류 (T1·T2 공용):**
 - **동편**: 1 ~ 24 또는 251 ~ 299
