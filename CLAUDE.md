@@ -16,7 +16,7 @@
 
 | 파일 | 역할 |
 |------|------|
-| `main.py` | FastAPI 앱 — `/` 라우트, 1시간 TTL 인메모리 캐시, HTML 테이블 생성 |
+| `main.py` | FastAPI 앱 — `/` 라우트, 데이터 캐시(48h) + 완성 페이지 캐시, HTML 테이블 생성 |
 | `templates/index.html` | Jinja2 템플릿 — CSS·Plotly 차트 2개 (T1·T2 분리) |
 | `icn_utils/data_loader.py` | 인천공항 API 호출 + Daily/Final pkl 로드 + 가공 |
 | `icn_utils/aggregator.py` | 월간 비교 집계 (전체·일자별·항공사별·도착지별·게이트별) |
@@ -28,7 +28,7 @@
 | `Final_Data/` | 완료된 월의 가공된 cum pkl |
 | `Dockerfile` | VPS Docker Compose 빌드 (python:3.11-slim · uvicorn) |
 | `render.yaml` | (deprecated) 구 Render 배포 설정. VPS 전환 후 미사용 |
-| `requirements.txt` | fastapi, uvicorn, jinja2, pandas, requests, holidays 등 |
+| `requirements.txt` | fastapi, uvicorn, jinja2, pandas, pyarrow, requests, holidays 등 — 전부 `==` 버전 고정(2026-11-11, 운영 설치 버전 기준) |
 | `Raw_Data_Format.txt` | `/api/export-raw` CSV 컬럼 순서·샘플 레퍼런스 (18개 컬럼) |
 | `.env` | `INCHEON_API_KEY` (gitignore) |
 
@@ -47,6 +47,7 @@ uvicorn main:app --reload --port 8000
 - **매일 자동 수집**: cron-job.org 외부 트리거 → GH Actions `backfill.py` 실행 → `Daily_Data/` 갱신 + git push → VPS 자동 재배포
 - **수집 폴백 (2026-07-29~)**: `backfill.py`가 실패하면 워크플로우가 `backfill_web.py`(airport.kr)로 자동 전환. 상세는 아래 "데이터 소스 폴백" 참조
 - **캐싱**: 메모리 + 디스크 pickle 이중 캐시 (`/tmp/icn_dashboard_cache.pkl`). TTL 48시간(cron 누락 안전 마진). 모든 요청 공유, 재시작 시 디스크에서 즉시 로드.
+- **완성 페이지 캐시**(2026-11-11): `/` 렌더 결과 HTML을 메모리(`_PAGE_CACHE`, 최대 32개)에 저장. 키 = 날짜·조회월·미리보기/과거월 여부·`fetched_at`·도착지 매핑 mtime·최신 Daily 일자 → cron 갱신 시 자동으로 새로 렌더. 운영 TTFB 1.43s → 0.75s(나머지는 독일 VPS 네트워크 왕복).
 - **캐시 갱신**: 매일 10:00 / 17:00 KST에 GitHub Actions cron이 `/api/refresh` 호출. 그 외 시간은 디스크 캐시로 즉시 응답(캐시 히트 ~4ms).
 
 ## 집계 규칙
