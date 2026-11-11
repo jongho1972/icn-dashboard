@@ -68,6 +68,11 @@ _CACHE_LOCK = threading.Lock()
 _TTL_SECONDS = 60 * 60 * 48  # 48시간
 CACHE_FILE = Path("/tmp") / "icn_dashboard_cache.pkl"
 
+# 렌더링 완료된 메인 페이지(HTML bytes). 메모리 전용 — 재시작 시 첫 요청에서 다시 채움.
+_PAGE_CACHE: dict[tuple, bytes] = {}
+_PAGE_CACHE_MAX = 32
+_PAGE_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600"
+
 logger = logging.getLogger("icn_dashboard")
 
 
@@ -500,6 +505,16 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
     prev, curr, fetched_at = fetch_months(
         curr_year, curr_month, prev_year, prev_month, service_key, today=today
     )
+
+    # 완성 페이지 캐시: 같은 날짜·조회월·데이터 갱신 시각이면 재계산 없이 반환
+    page_key = (
+        today, curr_year, curr_month, is_next_preview, is_past_view, fetched_at,
+        DEST_PATH.stat().st_mtime_ns, _latest_available_date(),
+    )
+    cached_body = _PAGE_CACHE.get(page_key)
+    if cached_body is not None:
+        return HTMLResponse(cached_body, headers={"Cache-Control": _PAGE_CACHE_CONTROL})
+
     dest_df = load_dest()
     countries = sorted(dest_df["국가"].dropna().astype(str).str.strip().unique().tolist())
 
@@ -714,7 +729,11 @@ def index(request: Request, view: str | None = None, ym: str | None = None):
             "export_max_date": _latest_available_date().isoformat(),
         },
     )
-    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+    response.headers["Cache-Control"] = _PAGE_CACHE_CONTROL
+    with _CACHE_LOCK:
+        if len(_PAGE_CACHE) >= _PAGE_CACHE_MAX:
+            _PAGE_CACHE.clear()
+        _PAGE_CACHE[page_key] = response.body
     return response
 
 
