@@ -31,7 +31,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install pandas requests
+        run: pip install pandas==3.1.1 numpy==2.5.4 pyarrow==26.0.1 requests==2.34.2  # requirements.txt와 동일 버전 고정(pkl 호환)
 
       - name: Build cum pkl
         run: python3 build_final_cum.py ${{ inputs.yyyymm }}
