@@ -28,7 +28,7 @@
 | `Final_Data/` | 완료된 월의 가공된 cum pkl |
 | `Dockerfile` | VPS Docker Compose 빌드 (python:3.11-slim · uvicorn) |
 | `render.yaml` | (deprecated) 구 Render 배포 설정. VPS 전환 후 미사용 |
-| `requirements.txt` | fastapi, uvicorn, jinja2, pandas, pyarrow, requests, holidays 등 — 전부 `==` 버전 고정(2026-11-11, 운영 설치 버전 기준) |
+| `requirements.txt` | fastapi, uvicorn, jinja2, pandas, pyarrow, requests, holidays 등 — 전부 `==` 버전 고정(2026-11-11, 운영 설치 버전 기준). cron 워크플로우(daily-backfill·monthly-cum·daily-mailer)의 `pip install`도 같은 버전으로 고정(2026-11-18) — 올릴 때 함께 갱신 |
 | `Raw_Data_Format.txt` | `/api/export-raw` CSV 컬럼 순서·샘플 레퍼런스 (18개 컬럼) |
 | `.env` | `INCHEON_API_KEY` (gitignore) |
 
