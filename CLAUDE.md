@@ -105,7 +105,7 @@ uvicorn main:app --reload --port 8000
 - **j-hawk VPS** (Hetzner CAX11 ARM · Docker Compose + Caddy): GitHub `main` 푸시 시 `deploy.yml`이 VPS SSH → `git reset --hard` → `docker compose build/up flight` → `/healthz` 체크
 - URL: <https://flight.jhawk.kr>
 - Env: `INCHEON_API_KEY`, `GITHUB_TOKEN`, `REFRESH_TOKEN` (VPS `/opt/j-hawk/deploy/.env.flight`)
-- 공통 인프라·롤백·트러블슈팅: 워크스페이스 루트 `deploy/README.md` 또는 `vps-deploy` 스킬
+- 공통 인프라·롤백·트러블슈팅: 워크스페이스 루트 `공용/deploy/README.md` 또는 `vps-deploy` 스킬
 
 ## 자동화
 
