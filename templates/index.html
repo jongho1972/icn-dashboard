@@ -35,27 +35,29 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <style>
     :root {
+      --page: #F7F8FA;
+      --text: #0D1B2E;
       --navy-900: #0B2E5C;
       --navy-700: #13407F;
-      --blue-500: #1F6FEB;
+      --blue-500: #1D5FD1;
       --blue-050: #DCE8F6;
       --blue-025: #F4F7FB;
-      --orange-600: #C26420;
+      --orange-600: #A35A24;
       --orange-025: #FBF3EB;
       --red-600: #B42318;
-      --pos-red: #C62828;
-      --delta-blue: #2A52BE;
+      --pos-red: #C0392F;
+      --delta-blue: #355F9E;
       --slate-700: #334155;
-      --slate-500: #64748B;
+      --slate-500: #5A6B82;
       --slate-400: #94A3B8;
       --slate-200: #CBD5E1;
-      --slate-100: #E5EAF0;
+      --slate-100: #E4E9F0;
       --slate-050: #EEF2F6;
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
-      background: #ffffff; color: #111827;
+      background: var(--page); color: var(--text);
       font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
       letter-spacing: -0.011em;
     }
@@ -116,6 +118,7 @@
       font-family: inherit; letter-spacing: -0.01em;
       transition: background 0.15s;
     }
+    .btn-icon { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
     .copy-btn:hover { background: var(--navy-700); }
     .copy-btn:disabled { background: var(--slate-400); cursor: wait; }
     /* 캡처 중 버튼/업데이트 배지/미매핑 배너 숨김 처리 */
@@ -256,7 +259,7 @@
     .summary-hero {
       position: relative;
       background: #FFFFFF;
-      color: #1A1A1A;
+      color: #0D1B2E;
       border: 1px solid var(--slate-100);
       border-left: 4px solid var(--navy-900);
       border-radius: 8px;
@@ -292,14 +295,14 @@
       letter-spacing: -0.01em;
     }
     .summary-row .val {
-      font-size: 28px; font-weight: 700; color: var(--navy-900);
+      font-size: 28px; font-weight: 700; color: var(--text);
       letter-spacing: -0.025em;
     }
     .summary-row .val .unit {
       font-size: 14px; font-weight: 500; margin-left: 3px;
       color: var(--slate-500);
     }
-    .summary-row.total .val { font-size: 36px; color: var(--pos-red); }
+    .summary-row.total .val { font-size: 36px; }
     .summary-row .mtd {
       font-size: 12px; color: var(--slate-500);
       white-space: nowrap;
@@ -319,7 +322,7 @@
     .summary-row.total .delta { font-size: 16px; }
     .summary-row .delta.pos { color: var(--pos-red); }
     .summary-row .delta.neg { color: var(--delta-blue); }
-    .summary-row .delta.flat { color: var(--slate-400); }
+    .summary-row .delta.flat { color: var(--slate-500); }
     .summary-row .delta .arrow { font-size: 0.85em; line-height: 1; }
     .summary-hero-foot {
       margin-top: 12px; padding-top: 10px;
@@ -359,7 +362,7 @@
       font-variant-numeric: tabular-nums;
       font-feature-settings: "tnum" 1, "ss01" 1;
       font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      color: #0A0F1E; letter-spacing: -0.01em;
+      color: #0D1B2E; letter-spacing: -0.01em;
       border-top: 1.5px solid var(--navy-900);
       table-layout: fixed;
     }
@@ -394,7 +397,7 @@
     }
     table.icn td.pos { color: var(--pos-red); font-weight: 600; font-variant-numeric: tabular-nums; }
     table.icn td.neg { color: var(--delta-blue); font-weight: 600; font-variant-numeric: tabular-nums; }
-    table.icn td.dash { color: var(--slate-400); font-weight: 400; }
+    table.icn td.dash { color: var(--slate-500); font-weight: 400; }
     table.icn th.t1-last, table.icn td.t1-last,
     table.icn th.t2-last, table.icn td.t2-last {
       border-right: 1px solid var(--slate-200);
@@ -467,7 +470,7 @@
       margin-top: 20px;
       padding-top: 14px;
       border-top: 1px solid var(--slate-100);
-      color: var(--slate-400);
+      color: var(--slate-500);
       font-size: 11px;
       text-align: center;
       letter-spacing: 0.02em;
@@ -479,13 +482,17 @@
       margin: 0 8px 10px 0; align-items: center; justify-content: flex-end;
     }
     .chart-legend .swatch { display: inline-flex; align-items: center; gap: 8px; }
-    .chart-legend b { color: #1a1a1a; }
+    .chart-legend b { color: #0D1B2E; }
 
     /* 차트 컨테이너 */
-    .chart { width: 100%; height: 260px; margin-top: 8px; }
+    .chart {
+      width: 100%; height: 284px; margin-top: 8px; padding: 12px 14px;
+      background: #fff; border: 1px solid var(--slate-100); border-radius: 8px; overflow: hidden;
+    }
 
     /* 테이블 가로 스크롤 래퍼 */
     .table-wrap {
+      background: #fff; border: 1px solid var(--slate-100); border-radius: 8px;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       margin: 4px 0 0 0;
@@ -526,7 +533,7 @@
       }
       .update-badge { flex-basis: 100%; order: -1; }
       .copy-btn { flex: 1 1 0; justify-content: center; white-space: nowrap; }
-      .chart { height: 280px; }
+      .chart { height: 296px; padding: 8px; }
     }
     .js-plotly-plot .plotly text{font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif !important}
     button,input,select,textarea{font-family:inherit}
@@ -551,8 +558,8 @@
       </div>
       <div class="header-actions">
         <span class="update-badge">데이터 기준 {{ fetched_at }} KST</span>
-        <button id="copy-btn" class="copy-btn" type="button">📋 이미지 복사</button>
-        <button id="export-btn" class="copy-btn" type="button" onclick="openExportModal()" style="background:#13407F;">📥 Raw Data 저장</button>
+        <button id="copy-btn" class="copy-btn" type="button"><svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg> 이미지 복사</button>
+        <button id="export-btn" class="copy-btn" type="button" onclick="openExportModal()" style="background:#13407F;"><svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.8 7 8 10.2 11.2 7M2.5 13.5h11"/></svg> Raw Data 저장</button>
       </div>
     </div>
     <div class="period-note">{{ period_note }}</div>
@@ -862,7 +869,7 @@
         annotations.push({
           x: tomorrowDay, y: yMax,
           text: "내일", showarrow: false,
-          font: { size: 10, color: "#64748B", weight: 600 },
+          font: { size: 10, color: "#5A6B82", weight: 600 },
           xanchor: "left", yanchor: "top",
           xshift: 4, yshift: -2,
         });
@@ -880,7 +887,7 @@
           y: prevAvg, yref: "y",
           text: `${chartData.prev_label} 평균 ${Math.round(prevAvg).toLocaleString()}`,
           showarrow: false,
-          font: { size: 9, color: "#64748B", weight: 600 },
+          font: { size: 9, color: "#5A6B82", weight: 600 },
           xanchor: "right", yanchor: "middle",
           xshift: -6,
           align: "right",
@@ -896,14 +903,14 @@
         },
         xaxis: {
           title: "", tickmode: "array", tickvals: tickDays, ticktext: tickText,
-          tickfont: { size: 11, color: "#64748B" },
+          tickfont: { size: 11, color: "#5A6B82" },
           showline: true, linecolor: "#CBD5E1",
           showgrid: false, zeroline: false,
           range: [0.5, chartLastDay + 0.5],
         },
         yaxis: {
           title: "",
-          tickfont: { size: 11, color: "#64748B" },
+          tickfont: { size: 11, color: "#5A6B82" },
           showline: true, linecolor: "#CBD5E1",
           showgrid: true, gridcolor: "#F1F5F9", griddash: "dot",
           zeroline: false,
@@ -944,13 +951,13 @@
     const t2PrevAvg = avg(chartData.series.T2_prev);
 
     Plotly.newPlot("chart_t1",
-      makeTraces(chartData.series.T1_curr, "#1F6FEB"),
-      commonLayout("T1", "#1F6FEB", yMin, yMax, t1PrevAvg),
+      makeTraces(chartData.series.T1_curr, "#1D5FD1"),
+      commonLayout("T1", "#1D5FD1", yMin, yMax, t1PrevAvg),
       { displayModeBar: false, responsive: true });
 
     Plotly.newPlot("chart_t2",
-      makeTraces(chartData.series.T2_curr, "#C26420"),
-      commonLayout("T2", "#C26420", yMin, yMax, t2PrevAvg),
+      makeTraces(chartData.series.T2_curr, "#A35A24"),
+      commonLayout("T2", "#A35A24", yMin, yMax, t2PrevAvg),
       { displayModeBar: false, responsive: true });
 
     // 리사이즈 시 모바일/데스크톱 전환에 맞춰 X축 tick 재계산
@@ -1009,13 +1016,13 @@
         pad: { b: 4 },
       },
       xaxis: {
-        tickfont: { size: 9, color: "#64748B" }, tickangle: -45,
+        tickfont: { size: 9, color: "#5A6B82" }, tickangle: -45,
         showline: true, linecolor: "#CBD5E1",
         showgrid: false, zeroline: false,
       },
       yaxis: {
-        title: { text: "편수(편)", font: { size: 11, color: "#64748B" }, standoff: 8 },
-        tickfont: { size: 11, color: "#64748B" },
+        title: { text: "편수(편)", font: { size: 11, color: "#5A6B82" }, standoff: 8 },
+        tickfont: { size: 11, color: "#5A6B82" },
         showline: true, linecolor: "#CBD5E1",
         showgrid: true, gridcolor: "#F1F5F9", griddash: "dot",
         zeroline: false, range: hourlyYRange,
@@ -1030,14 +1037,14 @@
 
     if (hourlyData.T1.available) {
       Plotly.newPlot("chart_hourly_t1",
-        makeHourlyTraces(hourlyData.T1, "#1F6FEB"),
-        hourlyLayout("T1", "#1F6FEB"),
+        makeHourlyTraces(hourlyData.T1, "#1D5FD1"),
+        hourlyLayout("T1", "#1D5FD1"),
         { displayModeBar: false, responsive: true });
     }
     if (hourlyData.T2.available) {
       Plotly.newPlot("chart_hourly_t2",
-        makeHourlyTraces(hourlyData.T2, "#C26420"),
-        hourlyLayout("T2", "#C26420"),
+        makeHourlyTraces(hourlyData.T2, "#A35A24"),
+        hourlyLayout("T2", "#A35A24"),
         { displayModeBar: false, responsive: true });
     }
 
@@ -1050,6 +1057,8 @@
         btn.textContent = text;
         btn.disabled = !!disabled;
       };
+      const idleHtml = btn.innerHTML;  // 아이콘 포함 원래 모양
+      const resetState = () => { btn.innerHTML = idleHtml; btn.disabled = false; };
 
       const download = (blob) => {
         const url = URL.createObjectURL(blob);
@@ -1063,7 +1072,6 @@
       };
 
       btn.addEventListener("click", async () => {
-        const orig = btn.textContent;
         setState("⏳ 생성 중...", true);
         document.body.classList.add("capturing");
         try {
@@ -1073,7 +1081,7 @@
           const target = document.querySelector(".container");
           // 4배 스케일 캡처 → 1200px로 계단식 다운샘플링 (메일 붙여넣기 사이즈 최적화)
           const srcCanvas = await html2canvas(target, {
-            backgroundColor: "#ffffff",
+            backgroundColor: "#f7f8fa",
             scale: 4,
             useCORS: true,
             logging: false,
@@ -1107,7 +1115,7 @@
           canvas.toBlob(async (blob) => {
             if (!blob) {
               setState("❌ 생성 실패", false);
-              setTimeout(() => setState(orig, false), 2000);
+              setTimeout(resetState, 2000);
               return;
             }
             // 1) 클립보드 복사 시도
@@ -1117,7 +1125,7 @@
                   new ClipboardItem({ "image/png": blob })
                 ]);
                 setState("✅ 복사 완료", true);
-                setTimeout(() => setState(orig, false), 2500);
+                setTimeout(resetState, 2500);
                 return;
               } catch (e) {
                 console.warn("clipboard.write failed, falling back to download:", e);
@@ -1126,13 +1134,13 @@
             // 2) 클립보드 차단/비지원 → 파일 다운로드
             download(blob);
             setState("⬇️ 다운로드됨 (클립보드 차단)", true);
-            setTimeout(() => setState(orig, false), 3000);
+            setTimeout(resetState, 3000);
           }, "image/png");
         } catch (err) {
           console.error(err);
           document.body.classList.remove("capturing");
           setState("❌ 오류 (F12 로그 확인)", false);
-          setTimeout(() => setState(orig, false), 3000);
+          setTimeout(resetState, 3000);
         }
       });
     })();

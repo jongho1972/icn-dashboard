@@ -337,7 +337,7 @@ def _trend_html(c, p) -> str:
     r = pct(c, p)
     if math.isnan(r):
         return ""
-    color = "#8C0023" if r > 0 else ("#2A52BE" if r < 0 else "#64748B")
+    color = "#C0392F" if r > 0 else ("#355F9E" if r < 0 else "#5A6B82")
     arrow = "▲" if r > 0 else ("▼" if r < 0 else "―")
     return (f' <span style="color:{color};font-weight:600;'
             f'font-variant-numeric:tabular-nums;">'
